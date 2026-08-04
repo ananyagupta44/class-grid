@@ -1,0 +1,32 @@
+﻿# dependencies
+node_modules/
+*/node_modules/
+
+# env files (all variants, in any folder)
+.env
+.env.*
+!.env.example
+*/.env
+*/.env.*
+*/*/.env
+*/*/.env.*
+
+# Next.js build output
+.next/
+*/.next/
+
+# build/dist
+dist/
+build/
+
+# logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
