@@ -1,0 +1,207 @@
+.page {
+  width: 100%;
+}
+
+.header {
+  margin-bottom: 1.1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--marigold-dark);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.55rem;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.tabRow {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabBtn {
+  padding: 0.6rem 0.9rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.tabBtnActive {
+  color: var(--marigold-dark);
+  border-bottom-color: var(--marigold);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(17rem, 22rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.formCard,
+.listCard {
+  background: var(--parchment-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.formCard {
+  padding: 1.1rem;
+}
+
+.formCard h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.formCard p {
+  margin: 0.3rem 0 1rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.formCard form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.formCard label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.formCard input,
+.formCard select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--parchment);
+  color: var(--ink);
+  font: inherit;
+}
+
+.subjectBuilder {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.subjectHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+}
+
+.subjectHead button {
+  border: none;
+  background: transparent;
+  color: var(--marigold-dark);
+  font-weight: 700;
+  font-size: 0.66rem;
+}
+
+.submit {
+  margin-top: 0.2rem;
+  padding: 0.68rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.listCard {
+  padding: 1rem;
+}
+
+.listHeading {
+  margin: 0 0 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.row div {
+  min-width: 0;
+}
+
+.row strong,
+.row span {
+  display: block;
+}
+
+.row strong {
+  font-size: 0.76rem;
+  color: var(--ink);
+}
+
+.row span {
+  margin-top: 0.12rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+.row button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: #b3392a;
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+@media (max-width: 780px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,11 +6,13 @@ const subjectSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      trim: true,
     },
 
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     noOfClasses: {
@@ -29,11 +31,12 @@ const subjectSchema = new mongoose.Schema(
       required: true,
     },
 
+    // [L, T, P]
     ltp: {
       type: [Number],
-      // [L, T, P]
       validate: {
-        validator: (arr) => arr.length === 3,
+        validator: (arr) => Array.isArray(arr) && arr.length === 3,
+
         message: "LTP must have exactly 3 values [L, T, P]",
       },
     },
@@ -43,7 +46,17 @@ const subjectSchema = new mongoose.Schema(
       enum: ["elective", "course"],
       default: "course",
     },
+
+    // Courses in which this subject is offered
+    // Empty when the subject is first created
+    courses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+      },
+    ],
   },
+
   {
     timestamps: true,
   },

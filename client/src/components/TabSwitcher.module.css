@@ -1,0 +1,27 @@
+.tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--parchment-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: transparent;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tabActive {
+  background: var(--slate);
+  color: var(--parchment);
+}

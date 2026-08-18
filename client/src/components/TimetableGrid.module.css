@@ -1,0 +1,66 @@
+.table {
+  width: 100%;
+  background: var(--parchment-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.grid {
+  display: grid;
+  min-width: 500px;
+}
+
+.corner {
+  padding: 0.45rem;
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.periodHeader {
+  padding: 0.45rem 0.25rem;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.55rem;
+  color: var(--ink-muted);
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.rowGroup {
+  display: contents;
+}
+
+.dayCell {
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  padding: 0.45rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--parchment);
+  border-top: 1px solid var(--line);
+}
+
+.slotCell {
+  min-height: 3.25rem;
+  padding: 0.2rem;
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .table {
+    overflow-x: auto;
+  }
+
+  .grid {
+    min-width: 560px;
+  }
+}

@@ -1,0 +1,109 @@
+.panelArea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.sidePanel {
+  min-width: 0;
+  background: rgba(253, 249, 239, 0.62);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0.7rem;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
+}
+
+.panelHeader span {
+  display: block;
+  margin-bottom: 0.1rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.panelHeader small {
+  font-size: 0.58rem;
+  color: var(--ink-muted);
+}
+
+/* Vertical scrolling only */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  min-height: 0;
+  max-height: 32rem;
+
+  padding: 0.1rem 0.25rem 0.45rem 0.1rem;
+}
+
+.cards > * {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+/* Vertical scrollbar */
+.cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cards::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 10px;
+}
+
+.cards::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+}
+
+.empty {
+  width: 100%;
+  min-height: 6rem;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 1050px) {
+  .panelArea {
+    grid-template-columns: 1fr;
+  }
+
+  .cards {
+    max-height: 28rem;
+  }
+}

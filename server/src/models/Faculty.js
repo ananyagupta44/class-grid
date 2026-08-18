@@ -20,7 +20,7 @@ const facultySchema = new mongoose.Schema(
       },
     ],
 
-    noOfClassesPe5rDay: {
+    noOfClassesPerWeek: {
       type: Number,
       required: true,
     },

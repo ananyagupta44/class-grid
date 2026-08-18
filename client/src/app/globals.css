@@ -1,26 +1,54 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --slate: #283b34;
+  --slate-dark: #1c2b26;
+  --parchment: #faf7f1;
+  --parchment-card: #ffffff;
+  --marigold: #e8a33d;
+  --marigold-dark: #c8862a;
+  --ink: #2a2a28;
+  --ink-muted: #6b6b64;
+  --line: #e4dfd3;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-card: 0 1px 2px rgba(28, 43, 38, 0.04), 0 8px 24px rgba(28, 43, 38, 0.06);
+  --shadow-panel: -12px 0 40px rgba(28, 43, 38, 0.18);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  padding: 0;
+  margin: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--parchment);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.font-display {
+  font-family: 'Fraunces', serif;
+}
+
+.font-mono-time {
+  font-family: 'IBM Plex Mono', monospace;
 }

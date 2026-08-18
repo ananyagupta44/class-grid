@@ -5,16 +5,15 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 
-import Teacher from "./models/Faculty.js";
-import Room from "./models/Room.js";
-import Subject from "./models/Subject.js";
-import Course from "./models/Course.js";
-
 import authRoutes from "./routes/authRoutes.js";
-import protect from "./middleware/authMiddleware.js";
-import restrictTo from "./middleware/roleMiddleware.js";
+import courseRoutes from "./routes/courseRoutes.js";
+import facultyRoutes from "./routes/facultyRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
+import subjectRoutes from "./routes/subjectRoutes.js";
+import sessionRoutes from "./routes/sessionRoutes.js";
+import timetableRoutes from "./routes/timetableRoutes.js";
 
-// Get __dirname equivalent in ES Modules
+// __dirname equivalent for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -25,96 +24,63 @@ dotenv.config({
 
 const app = express();
 
+// --------------------------------------------------
 // Middleware
+// --------------------------------------------------
+
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
+// --------------------------------------------------
+// MongoDB Connection
+// --------------------------------------------------
+
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => {
+    console.log("MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err.message);
+  });
 
-// Auth
+// --------------------------------------------------
+// Routes
+// --------------------------------------------------
+
+// Authentication
 app.use("/api/auth", authRoutes);
 
-// Teachers
-app.get("/api/teachers", async (req, res) => {
-  try {
-    const teachers = await Teacher.find();
-    res.json(teachers);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch teachers" });
-  }
-});
-
-app.post("/api/teachers", protect, restrictTo("admin"), async (req, res) => {
-  try {
-    const teacher = await Teacher.create(req.body);
-    res.status(201).json(teacher);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to create teacher" });
-  }
-});
-
-// Rooms
-app.get("/api/rooms", async (req, res) => {
-  try {
-    const rooms = await Room.find();
-    res.json(rooms);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch rooms" });
-  }
-});
-
-app.post("/api/rooms", protect, restrictTo("admin"), async (req, res) => {
-  try {
-    const room = await Room.create(req.body);
-    res.status(201).json(room);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to create room" });
-  }
-});
-
-// Subjects
-app.get("/api/subjects", async (req, res) => {
-  try {
-    const subjects = await Subject.find();
-    res.json(subjects);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch subjects" });
-  }
-});
-
-app.post("/api/subjects", protect, restrictTo("admin"), async (req, res) => {
-  try {
-    const subject = await Subject.create(req.body);
-    res.status(201).json(subject);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to create subject" });
-  }
-});
-
 // Courses
-app.get("/api/courses", async (req, res) => {
-  try {
-    const courses = await Course.find().populate("subjects");
-    res.json(courses);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch courses" });
-  }
+app.use("/api/courses", courseRoutes);
+
+// Faculty
+app.use("/api/faculty", facultyRoutes);
+
+// Rooms / Venues
+app.use("/api/rooms", roomRoutes);
+
+app.use("/api/subjects", subjectRoutes);
+
+app.use("/api/sessions", sessionRoutes);
+
+app.use("/api/timetable", timetableRoutes);
+
+// --------------------------------------------------
+// Health Check
+// --------------------------------------------------
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "ClassGrid backend is running",
+  });
 });
 
-app.post("/api/courses", protect, restrictTo("admin"), async (req, res) => {
-  try {
-    const course = await Course.create(req.body);
-    res.status(201).json(course);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to create course" });
-  }
-});
+// --------------------------------------------------
+// Start Server
+// --------------------------------------------------
 
-// Start server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

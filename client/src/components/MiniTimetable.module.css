@@ -1,0 +1,125 @@
+.card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+
+  background: var(--parchment-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 0.85rem;
+
+  /* No expansion */
+  transform: none;
+  transition: none;
+}
+
+/* .card:hover {
+  width: 27rem;
+  flex-basis: 27rem;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-panel);
+  position: relative;
+  z-index: 4;
+} */
+
+.accent-faculty {
+  border-top: 3px solid #4f7a6d;
+}
+
+.accent-venue {
+  border-top: 3px solid #b0654a;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.kicker {
+  margin: 0 0 0.1rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.header p:last-child {
+  margin: 0.1rem 0 0;
+  font-size: 0.6rem;
+  color: var(--ink-muted);
+}
+
+.dropHint {
+  flex: 0 0 auto;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--marigold-dark);
+  background: #fdf3e2;
+  border-radius: 4px;
+  padding: 0.25rem 0.35rem;
+}
+
+.grid {
+  display: grid;
+  gap: 2px;
+}
+
+.period {
+  min-width: 0;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.5rem;
+  color: var(--ink-muted);
+  padding-bottom: 0.15rem;
+  white-space: nowrap;
+}
+
+.row {
+  display: contents;
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.cell {
+  min-height: 2.25rem;
+  border-radius: 3px;
+  background: var(--parchment);
+  border: 1px solid transparent;
+  transition: border-color 0.12s var(--ease), background 0.12s var(--ease);
+}
+
+.dropCell:hover {
+  border-color: var(--marigold);
+  background: rgba(232, 163, 61, 0.1);
+}
+
+.plus {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-muted);
+  opacity: 0;
+  transition: opacity 0.12s var(--ease);
+}
+
+.dropCell:hover .plus {
+  opacity: 1;
+}

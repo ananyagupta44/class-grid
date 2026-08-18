@@ -9,8 +9,8 @@ const courseSchema = new mongoose.Schema(
     },
 
     session: {
-      type: String,
-      enum: ["monsoon", "spring"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Session",
       required: true,
     },
 

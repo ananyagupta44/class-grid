@@ -1,0 +1,1268 @@
+.page {
+  min-height: 100vh;
+  background: var(--parchment);
+  color: var(--ink);
+  padding: 2.25rem 2.5rem 4rem;
+  box-sizing: border-box;
+}
+
+
+/* ==================================================
+   HEADER
+================================================== */
+
+.header {
+  max-width: 1500px;
+  margin: 0 auto 2rem;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 2rem;
+}
+
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+
+  font-size: 0.65rem;
+  font-weight: 700;
+
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+
+  color: var(--marigold);
+}
+
+
+.header h1 {
+  margin: 0;
+
+  font-size: clamp(
+    2rem,
+    3vw,
+    3rem
+  );
+
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+
+  color: var(--ink);
+}
+
+
+.subtitle {
+  max-width: 650px;
+
+  margin: 0.65rem 0 0;
+
+  font-size: 0.85rem;
+  line-height: 1.6;
+
+  color: var(--ink-muted);
+}
+
+
+/* ==================================================
+   SESSION SELECTOR
+================================================== */
+
+.sessionSelector {
+  min-width: 220px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.55rem;
+
+  padding: 0.65rem 0.75rem;
+
+  background: var(--parchment-card);
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  box-shadow: var(--shadow-card);
+}
+
+
+.sessionSelector span {
+  font-size: 0.55rem;
+  font-weight: 700;
+
+  color: var(--ink-muted);
+
+  letter-spacing: 0.05em;
+}
+
+
+.sessionSelector select {
+  min-width: 70px;
+
+  border: 0;
+  outline: none;
+
+  background: transparent;
+
+  color: var(--ink);
+
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+
+.changeSession {
+  margin-left: auto;
+
+  border: 0;
+  background: transparent;
+
+  color: var(--marigold);
+
+  font-size: 0.65rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+
+.changeSession:hover {
+  text-decoration: underline;
+}
+
+
+/* ==================================================
+   ERROR
+================================================== */
+
+.error {
+  max-width: 1500px;
+  margin: 0 auto 1rem;
+
+  padding: 0.75rem 0.9rem;
+
+  border: 1px solid
+    rgba(160, 70, 50, 0.25);
+
+  border-radius: var(--radius-sm);
+
+  background: rgba(
+    160,
+    70,
+    50,
+    0.07
+  );
+
+  color: #9b4837;
+
+  font-size: 0.75rem;
+}
+
+
+/* ==================================================
+   FOUR COLUMN LAYOUT
+================================================== */
+
+.dashboardColumns {
+  max-width: 1500px;
+  margin: 0 auto;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 0.85rem;
+
+  align-items: stretch;
+}
+
+
+/* ==================================================
+   MANAGEMENT COLUMN
+================================================== */
+
+.managementColumn {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background:
+    rgba(
+      253,
+      249,
+      239,
+      0.62
+    );
+
+  border: 1px solid var(--line);
+
+  border-radius: var(--radius-md);
+
+  overflow: hidden;
+}
+
+
+.columnHeader {
+  padding: 0.85rem;
+
+  border-bottom:
+    1px solid var(--line);
+
+  background:
+    rgba(
+      255,
+      252,
+      244,
+      0.68
+    );
+}
+
+
+.columnEyebrow {
+  display: block;
+
+  margin-bottom: 0.15rem;
+
+  font-size: 0.55rem;
+  font-weight: 700;
+
+  letter-spacing: 0.07em;
+
+  color: var(--marigold);
+}
+
+
+.columnTitleRow {
+  display: flex;
+  align-items: center;
+
+  gap: 0.45rem;
+}
+
+
+.columnTitleRow h2 {
+  margin: 0;
+
+  font-size: 0.95rem;
+
+  color: var(--ink);
+}
+
+
+.count {
+  min-width: 1.25rem;
+  height: 1.25rem;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 999px;
+
+  background: var(--parchment);
+
+  border: 1px solid var(--line);
+
+  color: var(--ink-muted);
+
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+
+.columnHeader p {
+  margin: 0.35rem 0 0;
+
+  min-height: 2.2rem;
+
+  font-size: 0.67rem;
+  line-height: 1.45;
+
+  color: var(--ink-muted);
+}
+
+
+.addButton {
+  width: 100%;
+
+  margin-top: 0.7rem;
+
+  padding: 0.55rem 0.7rem;
+
+  border: 1px solid var(--line);
+
+  border-radius: var(--radius-sm);
+
+  background: var(--ink);
+
+  color: var(--parchment);
+
+  font-size: 0.67rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+
+.addButton:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+
+/* ==================================================
+   ITEMS
+================================================== */
+
+.items {
+  min-height: 300px;
+  max-height: 600px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding: 0.55rem;
+}
+
+
+.items::-webkit-scrollbar {
+  width: 5px;
+}
+
+
+.items::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.items::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+
+/* ==================================================
+   ITEM
+================================================== */
+
+.item {
+  display: flex;
+  align-items: center;
+
+  gap: 0.5rem;
+
+  padding: 0.55rem;
+
+  border: 1px solid transparent;
+
+  border-radius: var(--radius-sm);
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+
+.item:hover {
+  background:
+    rgba(
+      255,
+      252,
+      244,
+      0.85
+    );
+
+  border-color: var(--line);
+}
+
+
+.item + .item {
+  margin-top: 0.25rem;
+}
+
+
+.itemMain {
+  min-width: 0;
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.55rem;
+
+  border: 0;
+  background: transparent;
+
+  color: inherit;
+
+  text-align: left;
+
+  padding: 0;
+
+  cursor: pointer;
+}
+
+
+.itemIcon {
+  flex: 0 0 auto;
+
+  width: 2rem;
+  height: 2rem;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 7px;
+
+  background:
+    rgba(
+      204,
+      164,
+      74,
+      0.12
+    );
+
+  color: var(--marigold);
+
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+
+.itemInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.15rem;
+}
+
+
+.itemInfo strong {
+  overflow: hidden;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  font-size: 0.72rem;
+
+  color: var(--ink);
+}
+
+
+.itemInfo span {
+  overflow: hidden;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  font-size: 0.57rem;
+
+  color: var(--ink-muted);
+}
+
+
+.editButton {
+  flex: 0 0 auto;
+
+  padding: 0.3rem 0.45rem;
+
+  border: 1px solid var(--line);
+
+  border-radius: 5px;
+
+  background: transparent;
+
+  color: var(--ink-muted);
+
+  font-size: 0.55rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+
+.editButton:hover {
+  color: var(--ink);
+
+  background:
+    rgba(
+      255,
+      252,
+      244,
+      0.9
+    );
+}
+
+
+/* ==================================================
+   EMPTY
+================================================== */
+
+.empty {
+  min-height: 8rem;
+
+  display: grid;
+  place-items: center;
+
+  padding: 1rem;
+
+  border: 1px dashed var(--line);
+
+  border-radius: var(--radius-sm);
+
+  color: var(--ink-muted);
+
+  font-size: 0.65rem;
+
+  text-align: center;
+}
+
+
+/* ==================================================
+   MODAL OVERLAY
+================================================== */
+
+.modalOverlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1000;
+
+  display: grid;
+  place-items: center;
+
+  padding: 1rem;
+
+  background:
+    rgba(
+      39,
+      31,
+      22,
+      0.35
+    );
+
+  backdrop-filter:
+    blur(3px);
+}
+
+
+/* ==================================================
+   SESSION MODAL
+================================================== */
+
+.sessionModal {
+  width: min(
+    100%,
+    500px
+  );
+
+  max-height: calc(
+    100vh - 2rem
+  );
+
+  overflow-y: auto;
+
+  padding: 1.25rem;
+
+  background:
+    var(--parchment-card);
+
+  border: 1px solid var(--line);
+
+  border-radius:
+    var(--radius-md);
+
+  box-shadow:
+    0 18px 55px
+    rgba(
+      54,
+      42,
+      28,
+      0.18
+    );
+}
+
+
+.modalTop {
+  display: flex;
+
+  justify-content: space-between;
+
+  gap: 1rem;
+}
+
+
+.modalEyebrow {
+  display: block;
+
+  margin-bottom: 0.25rem;
+
+  color: var(--marigold);
+
+  font-size: 0.58rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+}
+
+
+.modalTop h2,
+.formModalHeader h2 {
+  margin: 0;
+
+  font-size: 1.15rem;
+
+  letter-spacing: -0.02em;
+}
+
+
+.modalTop p,
+.formModalHeader p {
+  margin: 0.4rem 0 0;
+
+  color: var(--ink-muted);
+
+  font-size: 0.7rem;
+
+  line-height: 1.5;
+}
+
+
+.closeButton {
+  width: 1.8rem;
+  height: 1.8rem;
+
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--line);
+
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: var(--ink-muted);
+
+  font-size: 1rem;
+
+  cursor: pointer;
+}
+
+
+.closeButton:hover {
+  color: var(--ink);
+
+  background:
+    rgba(
+      255,
+      252,
+      244,
+      0.8
+    );
+}
+
+
+/* ==================================================
+   MODAL TABS
+================================================== */
+
+.modalTabs {
+  display: flex;
+
+  gap: 0.35rem;
+
+  margin-top: 1.25rem;
+
+  border-bottom:
+    1px solid var(--line);
+}
+
+
+.modalTabs button {
+  padding: 0.55rem 0.65rem;
+
+  border: 0;
+  border-bottom:
+    2px solid transparent;
+
+  background: transparent;
+
+  color: var(--ink-muted);
+
+  font-size: 0.65rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+
+.modalTabs .activeTab {
+  color: var(--ink);
+
+  border-bottom-color:
+    var(--marigold);
+}
+
+
+/* ==================================================
+   SESSION LIST
+================================================== */
+
+.sessionList {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.55rem;
+
+  margin-top: 1rem;
+}
+
+
+.sessionOption,
+.sessionOptionActive {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 0.5rem;
+
+  padding: 0.8rem;
+
+  border-radius: var(--radius-sm);
+
+  cursor: pointer;
+
+  text-align: left;
+}
+
+
+.sessionOption {
+  border: 1px solid var(--line);
+
+  background: transparent;
+}
+
+
+.sessionOptionActive {
+  border:
+    1px solid
+    var(--marigold);
+
+  background:
+    rgba(
+      204,
+      164,
+      74,
+      0.08
+    );
+}
+
+
+.sessionOption:hover {
+  border-color:
+    var(--marigold);
+}
+
+
+.sessionOption span,
+.sessionOptionActive span {
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  color: var(--ink);
+}
+
+
+.sessionOption small,
+.sessionOptionActive small {
+  font-size: 0.55rem;
+
+  color: var(--ink-muted);
+}
+
+
+/* ==================================================
+   FORM
+================================================== */
+
+.form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.8rem;
+
+  margin-top: 1rem;
+}
+
+
+.form label {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.3rem;
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  color: var(--ink);
+}
+
+
+.form input,
+.form select {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 0.62rem 0.7rem;
+
+  border: 1px solid var(--line);
+
+  border-radius: var(--radius-sm);
+
+  background:
+    rgba(
+      255,
+      252,
+      244,
+      0.7
+    );
+
+  color: var(--ink);
+
+  outline: none;
+
+  font-family: inherit;
+
+  font-size: 0.7rem;
+}
+
+
+.form input:focus,
+.form select:focus {
+  border-color:
+    var(--marigold);
+
+  box-shadow:
+    0 0 0 2px
+    rgba(
+      204,
+      164,
+      74,
+      0.1
+    );
+}
+
+
+.form input:disabled {
+  opacity: 0.65;
+}
+
+
+.fieldHint {
+  margin-top: -0.4rem;
+
+  font-size: 0.58rem;
+
+  color: var(--ink-muted);
+}
+
+
+.formError {
+  padding: 0.6rem 0.7rem;
+
+  border: 1px solid
+    rgba(
+      160,
+      70,
+      50,
+      0.22
+    );
+
+  border-radius: var(--radius-sm);
+
+  background:
+    rgba(
+      160,
+      70,
+      50,
+      0.06
+    );
+
+  color: #984736;
+
+  font-size: 0.62rem;
+}
+
+
+/* ==================================================
+   FORM MODAL
+================================================== */
+
+.formModal {
+  width: min(
+    100%,
+    650px
+  );
+
+  max-height:
+    calc(100vh - 2rem);
+
+  overflow-y: auto;
+
+  padding: 1.25rem;
+
+  background:
+    var(--parchment-card);
+
+  border:
+    1px solid var(--line);
+
+  border-radius:
+    var(--radius-md);
+
+  box-shadow:
+    0 18px 55px
+    rgba(
+      54,
+      42,
+      28,
+      0.18
+    );
+}
+
+
+.formModalHeader {
+  display: flex;
+
+  justify-content: space-between;
+
+  gap: 1rem;
+}
+
+
+.formGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.75rem;
+}
+
+
+/* ==================================================
+   SUBJECT / FACULTY ASSIGNMENT
+================================================== */
+
+.assignmentSection {
+  margin-top: 0.4rem;
+
+  padding-top: 0.9rem;
+
+  border-top:
+    1px solid var(--line);
+}
+
+
+.assignmentHeader h3 {
+  margin: 0;
+
+  font-size: 0.75rem;
+}
+
+
+.assignmentHeader p {
+  margin: 0.25rem 0 0;
+
+  font-size: 0.6rem;
+
+  color: var(--ink-muted);
+}
+
+
+.subjectPicker {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.4rem;
+
+  margin-top: 0.7rem;
+}
+
+
+.subjectChoice,
+.subjectChoiceActive {
+  padding: 0.55rem;
+
+  border:
+    1px solid var(--line);
+
+  border-radius: var(--radius-sm);
+}
+
+
+.subjectChoiceActive {
+  border-color:
+    rgba(
+      204,
+      164,
+      74,
+      0.65
+    );
+
+  background:
+    rgba(
+      204,
+      164,
+      74,
+      0.06
+    );
+}
+
+
+.subjectCheck {
+  display: flex !important;
+
+  flex-direction: row !important;
+
+  align-items: center;
+
+  gap: 0.55rem;
+
+  cursor: pointer;
+}
+
+
+.subjectCheck input {
+  width: auto;
+}
+
+
+.subjectCheck span {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 0.12rem;
+}
+
+
+.subjectCheck strong {
+  font-size: 0.67rem;
+}
+
+
+.subjectCheck small {
+  font-size: 0.55rem;
+
+  color: var(--ink-muted);
+}
+
+
+.subjectChoice select,
+.subjectChoiceActive select {
+  margin-top: 0.45rem;
+}
+
+
+/* ==================================================
+   LTP
+================================================== */
+
+.ltpEditor {
+  display: grid;
+
+  grid-template-columns:
+    auto repeat(3, 1fr);
+
+  align-items: end;
+
+  gap: 0.5rem;
+
+  margin-top: 0.25rem;
+}
+
+
+.ltpEditor > span {
+  padding-bottom: 0.65rem;
+
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+
+.ltpEditor label {
+  gap: 0.2rem;
+}
+
+
+/* ==================================================
+   MODAL ACTIONS
+================================================== */
+
+.modalActions {
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 0.5rem;
+
+  margin-top: 0.25rem;
+
+  padding-top: 0.8rem;
+
+  border-top:
+    1px solid var(--line);
+}
+
+
+.primaryButton,
+.secondaryButton {
+  padding: 0.58rem 0.8rem;
+
+  border-radius: var(--radius-sm);
+
+  font-size: 0.65rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+
+.primaryButton {
+  border: 1px solid var(--ink);
+
+  background: var(--ink);
+
+  color: var(--parchment);
+}
+
+
+.primaryButton:hover {
+  opacity: 0.9;
+}
+
+
+.primaryButton:disabled {
+  opacity: 0.55;
+
+  cursor: not-allowed;
+}
+
+
+.secondaryButton {
+  border: 1px solid var(--line);
+
+  background: transparent;
+
+  color: var(--ink-muted);
+}
+
+
+.secondaryButton:hover {
+  color: var(--ink);
+}
+
+
+/* ==================================================
+   LOADING
+================================================== */
+
+.loading {
+  min-height: 100vh;
+
+  display: grid;
+
+  place-items: center;
+
+  align-content: center;
+
+  gap: 0.7rem;
+
+  color: var(--ink-muted);
+}
+
+
+.loadingMark {
+  width: 3rem;
+  height: 3rem;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 10px;
+
+  background: var(--ink);
+
+  color: var(--parchment);
+
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+
+.loading p {
+  margin: 0;
+
+  font-size: 0.7rem;
+}
+
+
+/* ==================================================
+   RESPONSIVE
+================================================== */
+
+@media (max-width: 1200px) {
+  .dashboardColumns {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 760px) {
+  .page {
+    padding:
+      1.5rem
+      1rem
+      3rem;
+  }
+
+  .header {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .sessionSelector {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dashboardColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sessionList {
+    grid-template-columns: 1fr;
+  }
+}

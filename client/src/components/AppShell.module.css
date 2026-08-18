@@ -1,0 +1,13 @@
+.main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 2rem 2rem 4rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: 1.5rem 1.25rem 3rem;
+  }
+}
