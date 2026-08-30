@@ -48,6 +48,12 @@ const timetableEntrySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    duration: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 3,
+    },
   },
   {
     timestamps: true,

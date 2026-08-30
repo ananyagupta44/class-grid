@@ -1,6 +1,7 @@
 import Course from "../models/Course.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
+import Subject from "../models/Subject.js";
 import TimetableEntry from "../models/TimetableEntry.js";
 
 const DAYS = [
@@ -112,6 +113,7 @@ function buildLegend(course, entries) {
           credits: subject.credits,
           ltp: subject.ltp,
           category: subject.category,
+          labDuration: subject.labDuration || 1,
         },
 
         faculty: faculty
@@ -144,7 +146,8 @@ export const getDashboardData = async (req, res) => {
       })
       .populate({
         path: "subjects.subject",
-        select: "subjectId name noOfClasses type credits ltp category",
+        select:
+          "subjectId name noOfClasses type credits ltp category labDuration",
       })
       .populate({
         path: "subjects.faculty",
@@ -158,7 +161,11 @@ export const getDashboardData = async (req, res) => {
       });
     }
 
-    const [faculties, venues, entries] = await Promise.all([
+    const assignedSubjectIds = course.subjects
+      .map((item) => item.subject?._id)
+      .filter(Boolean);
+
+    const [faculties, venues, entries, availableSubjects] = await Promise.all([
       Faculty.find()
         .populate({
           path: "subjects",
@@ -166,7 +173,9 @@ export const getDashboardData = async (req, res) => {
         })
         .sort({ name: 1 }),
 
-      Room.find().sort({ roomNo: 1 }),
+      Room.find().sort({
+        roomNo: 1,
+      }),
 
       TimetableEntry.find({
         course: course._id,
@@ -180,6 +189,14 @@ export const getDashboardData = async (req, res) => {
           day: 1,
           periodId: 1,
         }),
+
+      Subject.find({
+        _id: {
+          $nin: assignedSubjectIds,
+        },
+      }).sort({
+        name: 1,
+      }),
     ]);
 
     return res.status(200).json({
@@ -199,6 +216,8 @@ export const getDashboardData = async (req, res) => {
       entries,
 
       legend: buildLegend(course, entries),
+
+      availableSubjects,
     });
   } catch (error) {
     console.error("GET DASHBOARD DATA ERROR:", error);

@@ -9,6 +9,9 @@ import TimetableGrid from "../../components/TimetableGrid";
 import RightPanel from "../../components/RightPanel";
 import FacultyLegend from "../../components/FacultyLegend";
 import EditClassModal from "../../components/EditClassModal";
+import { useTimetable } from "../../context/TimetableContext";
+
+import { DAYS, PERIODS } from "../../context/TimetableContext";
 
 import styles from "./dashboard.module.css";
 
@@ -16,7 +19,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function getId(value) {
   if (!value) return "";
-  if (typeof value === "string") return value;
+
+  if (typeof value === "string") {
+    return value;
+  }
+
   return value._id || value.id || "";
 }
 
@@ -26,13 +33,16 @@ async function apiRequest(endpoint, options = {}) {
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+
     headers: {
       "Content-Type": "application/json",
+
       ...(token
         ? {
             Authorization: `Bearer ${token}`,
           }
         : {}),
+
       ...(options.headers || {}),
     },
   });
@@ -49,6 +59,7 @@ async function apiRequest(endpoint, options = {}) {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { addEntry, updateEntry } = useTimetable();
 
   const urlCourseId = searchParams.get("courseId");
 
@@ -56,16 +67,14 @@ export default function Dashboard() {
   const [course, setCourse] = useState(null);
 
   const [faculties, setFaculties] = useState([]);
-
   const [venues, setVenues] = useState([]);
-
   const [entries, setEntries] = useState([]);
-
   const [legend, setLegend] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
 
-  const [days, setDays] = useState([]);
-
-  const [periods, setPeriods] = useState([]);
+  // Timetable structure comes from frontend
+  const days = DAYS;
+  const periods = PERIODS;
 
   const [facultyTimetables, setFacultyTimetables] = useState([]);
 
@@ -112,162 +121,66 @@ export default function Dashboard() {
    */
 
   useEffect(() => {
-    if (!urlCourseId) {
-      return;
-    }
+    if (!urlCourseId) return;
 
     async function loadDashboard() {
-  if (!urlCourseId) {
-    return;
-  }
+      try {
+        setLoading(true);
+        setError("");
 
-  try {
-    setLoading(true);
-    setError("");
+        const response = await apiRequest(`/dashboard/${urlCourseId}`);
 
-    const [
-      coursesResponse,
-      facultyResponse,
-      roomsResponse,
-      timetableResponse,
-    ] = await Promise.all([
-      apiRequest("/courses"),
-      apiRequest("/faculty"),
-      apiRequest("/rooms"),
-      apiRequest(
-        `/timetable?courseId=${urlCourseId}`,
-      ),
-    ]);
+        console.log("FULL DASHBOARD RESPONSE:", response);
 
-    const allCourses =
-      coursesResponse.courses || [];
+        console.log("COURSE SUBJECTS:", response.course?.subjects || []);
 
-    const allFaculties =
-      facultyResponse.faculty || [];
+        console.log("LEGEND:", response.legend || []);
 
-    const allVenues =
-      roomsResponse.rooms || [];
+        setCourse(response.course || null);
 
-    const timetableEntries =
-      timetableResponse.entries || [];
+        setFaculties(response.faculties || []);
 
-    const selectedCourse =
-      allCourses.find(
-        (item) =>
-          item._id === urlCourseId,
-      );
+        setVenues(response.venues || []);
 
-    setCourses(allCourses);
+        setEntries(response.entries || []);
 
-    setCourse(
-      selectedCourse || null,
-    );
+        setLegend(response.legend || []);
 
-    setFaculties(
-      allFaculties,
-    );
+        setAvailableSubjects(response.availableSubjects || []);
 
-    setVenues(
-      allVenues,
-    );
+        /*
+         * DO NOT SET DAYS/PERIODS FROM BACKEND.
+         *
+         * They come from:
+         * TimetableContext -> DAYS
+         * TimetableContext -> PERIODS
+         */
 
-    setEntries(
-      timetableEntries,
-    );
+        setFacultyTimetables(response.facultyTimetables || []);
 
-    /*
-     * Keep these arrays safe even if
-     * backend does not return them.
-     */
-    setFacultyTimetables([]);
-    setVenueTimetables([]);
+        setVenueTimetables(response.venueTimetables || []);
+      } catch (err) {
+        console.error("LOAD DASHBOARD:", err);
 
-    /*
-     * We will generate legend from
-     * course.subjects for now.
-     */
-    setLegend([]);
+        setError(err.message);
 
-    /*
-     * Keep your existing timetable
-     * configuration.
-     */
-    setDays([
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ]);
-
-    setPeriods([
-      {
-        id: "p1",
-        label: "09:00 - 10:00",
-        isBreak: false,
-      },
-      {
-        id: "p2",
-        label: "10:00 - 11:00",
-        isBreak: false,
-      },
-      {
-        id: "p3",
-        label: "11:00 - 12:00",
-        isBreak: false,
-      },
-      {
-        id: "break1",
-        label: "12:00 - 12:30",
-        isBreak: true,
-      },
-      {
-        id: "p4",
-        label: "12:30 - 01:30",
-        isBreak: false,
-      },
-      {
-        id: "p5",
-        label: "01:30 - 02:30",
-        isBreak: false,
-      },
-      {
-        id: "p6",
-        label: "02:30 - 03:30",
-        isBreak: false,
-      },
-      {
-        id: "p7",
-        label: "03:30 - 04:30",
-        isBreak: false,
-      },
-    ]);
-  } catch (err) {
-    console.error(
-      "LOAD DASHBOARD:",
-      err,
-    );
-
-    setError(err.message);
-
-    setCourse(null);
-    setEntries([]);
-    setLegend([]);
-    setFacultyTimetables([]);
-    setVenueTimetables([]);
-  } finally {
-    setLoading(false);
-  }
-}
+        setCourse(null);
+        setFaculties([]);
+        setVenues([]);
+        setEntries([]);
+        setLegend([]);
+        setFacultyTimetables([]);
+        setVenueTimetables([]);
+      } finally {
+        setLoading(false);
+      }
+    }
 
     loadDashboard();
   }, [urlCourseId]);
 
   /*
    * CURRENT COURSE
-   *
-   * Comes entirely from backend.
    */
 
   const currentCourse = course;
@@ -283,7 +196,7 @@ export default function Dashboard() {
   }
 
   /*
-   * TAB
+   * TAB CHANGE
    */
 
   function handleTabChange(next) {
@@ -318,9 +231,6 @@ export default function Dashboard() {
 
   /*
    * MAIN GRID
-   *
-   * No frontend reconstruction of
-   * backend timetable data.
    */
 
   const gridEntries = useMemo(() => {
@@ -340,19 +250,73 @@ export default function Dashboard() {
   }, [entries, selectedId, viewType]);
 
   /*
+   * FACULTY CARDS
+   */
+
+  const facultyCards = useMemo(
+    () =>
+      faculties.map((faculty) => ({
+        id: faculty._id || faculty.id,
+
+        title: faculty.name,
+
+        subtitle: faculty.designation,
+
+        entries: entries.filter(
+          (entry) => getId(entry.faculty) === (faculty._id || faculty.id),
+        ),
+      })),
+    [faculties, entries],
+  );
+
+  /*
+   * VENUE CARDS
+   */
+
+  const venueCards = useMemo(
+    () =>
+      venues.map((venue) => ({
+        id: venue._id || venue.id,
+
+        title: venue.roomNo || venue.name,
+
+        subtitle: venue.type,
+
+        entries: entries.filter(
+          (entry) => getId(entry.venue) === (venue._id || venue.id),
+        ),
+      })),
+    [venues, entries],
+  );
+
+  /*
    * OPEN ADD CLASS
    */
 
   function openAddClass(day = "", periodId = "") {
+    if (!currentCourse) {
+      setError("Please select a course first.");
+      return;
+    }
+
     setModalState({
+      mode: "create",
+
+      courseId: currentCourse._id || currentCourse.id || urlCourseId,
+
+      subjectId: "",
+      facultyId: "",
+      venueId: "",
+
       day,
       periodId,
-      courseId: currentCourse?._id || currentCourse?.id || urlCourseId,
+
+      duration: 1,
     });
   }
 
   /*
-   * DRAG EXISTING ENTRY
+   * MOVE EXISTING ENTRY
    */
 
   async function handleDropEntry(entryId, day, periodId) {
@@ -382,22 +346,48 @@ export default function Dashboard() {
     }
   }
 
+  async function handleAddSubject(subjectId) {
+    try {
+      const courseId = currentCourse?._id || currentCourse?.id;
+
+      const response = await apiRequest(`/courses/${courseId}/subjects`, {
+        method: "POST",
+        body: JSON.stringify({
+          subjectId,
+        }),
+      });
+
+      console.log("SUBJECT ADDED:", response);
+
+      await reloadDashboard();
+    } catch (error) {
+      console.error("ADD SUBJECT ERROR:", error);
+    }
+  }
+
   /*
-   * DRAG LEGEND BLOCK
+   * DROP LEGEND BLOCK
    */
 
   function handleLegendDrop(payload, day, periodId) {
     setModalState({
-      day,
-      periodId,
+      mode: "create",
 
-      courseId: currentCourse?._id || currentCourse?.id,
+      courseId: payload.courseId || currentCourse?._id || currentCourse?.id,
 
       subjectId: payload.subjectId,
 
-      facultyId: payload.facultyId,
+      facultyId: payload.facultyId || "",
+
+      day,
+
+      periodId,
 
       blockType: payload.blockType,
+
+      blockNumber: payload.blockNumber,
+
+      duration: 1,
     });
   }
 
@@ -409,8 +399,33 @@ export default function Dashboard() {
     openAddClass(day, periodId);
   }
 
+  function handleVenueDrop(payload, day, periodId, venueId) {
+    console.log("VENUE DROP:", payload, day, periodId, venueId);
+
+    if (payload.kind === "legend") {
+      setModalState({
+        courseId: payload.courseId || currentCourse?._id || currentCourse?.id,
+
+        subjectId: payload.subjectId,
+
+        facultyId: payload.facultyId,
+
+        venueId,
+
+        day,
+        periodId,
+      });
+
+      return;
+    }
+
+    if (payload.kind === "class-block") {
+      handleDropEntry(payload.id, day, periodId);
+    }
+  }
+
   /*
-   * EDIT
+   * EDIT ENTRY
    */
 
   function handleEditEntry(entry) {
@@ -428,56 +443,41 @@ export default function Dashboard() {
   }
 
   /*
-   * SAVE
+   * SAVE CLASS
    */
 
   async function handleSave(form) {
-    try {
-      const editing = Boolean(form.id);
+    const payload = {
+      ...form,
 
-      const payload = {
-        courseId: form.courseId || urlCourseId,
+      courseId: form.courseId || currentCourse?._id || currentCourse?.id,
 
-        subjectId: form.subjectId,
+      duration: form.duration || 1,
+    };
 
-        facultyId: form.facultyId,
+    if (form.id || form._id) {
+      const id = form.id || form._id;
 
-        venueId: form.venueId,
+      const result = await updateEntry(id, payload);
 
-        day: form.day,
+      if (result.ok) {
+        setModalState(null);
+      }
 
-        periodId: form.periodId,
-      };
-
-      const response = await apiRequest(
-        editing ? `/timetable/${form.id}` : "/timetable",
-        {
-          method: editing ? "PUT" : "POST",
-
-          body: JSON.stringify(payload),
-        },
-      );
-
-      await reloadDashboard();
-
-      setModalState(null);
-
-      return {
-        ok: true,
-        entry: response.entry,
-      };
-    } catch (err) {
-      console.error("SAVE CLASS:", err);
-
-      return {
-        ok: false,
-        reason: err.message,
-      };
+      return result;
     }
+
+    const result = await addEntry(payload);
+
+    if (result.ok) {
+      setModalState(null);
+    }
+
+    return result;
   }
 
   /*
-   * DELETE
+   * DELETE CLASS
    */
 
   async function handleDelete(id) {
@@ -504,13 +504,13 @@ export default function Dashboard() {
   }
 
   /*
-   * ASSIGN FACULTY TO SUBJECT
+   * ASSIGN FACULTY
    */
 
   async function handleAssignFaculty(subjectId, facultyId) {
     try {
-      await apiRequest(
-        `/courses/${urlCourseId}/subjects/${subjectId}/faculty`,
+      const response = await apiRequest(
+        `/courses/${course._id}/subjects/${subjectId}/faculty`,
         {
           method: "PATCH",
 
@@ -520,11 +520,11 @@ export default function Dashboard() {
         },
       );
 
-      await reloadDashboard();
-    } catch (err) {
-      console.error("ASSIGN FACULTY:", err);
+      console.log("FACULTY ASSIGNED:", response);
 
-      setError(err.message);
+      await reloadDashboard();
+    } catch (error) {
+      console.error("ASSIGN FACULTY ERROR:", error);
     }
   }
 
@@ -547,9 +547,10 @@ export default function Dashboard() {
 
     setLegend(response.legend || []);
 
-    setDays(response.config?.days || []);
-
-    setPeriods(response.config?.periods || []);
+    /*
+     * Do NOT update days/periods here.
+     * They remain the frontend constants.
+     */
 
     setFacultyTimetables(response.facultyTimetables || []);
 
@@ -579,6 +580,13 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  console.log("ADD CLASS DEBUG:", {
+    currentCourse,
+    modalState,
+    course,
+    subjects: course?.subjects,
+  });
 
   return (
     <div className={styles.page}>
@@ -700,7 +708,7 @@ export default function Dashboard() {
             venues={venues}
             viewType={viewType}
             onDropEntry={handleDropEntry}
-            onLegendDrop={viewType === "course" ? handleLegendDrop : undefined}
+            onLegendDrop={handleLegendDrop}
             onCellClick={handleCellClick}
             onEditEntry={handleEditEntry}
           />
@@ -709,7 +717,10 @@ export default function Dashboard() {
             <FacultyLegend
               legend={legend}
               faculties={faculties}
+              availableSubjects={availableSubjects}
+              courseId={currentCourse?._id || currentCourse?.id}
               onAssignFaculty={handleAssignFaculty}
+              onAddSubject={handleAddSubject}
               onDrop={handleLegendDrop}
             />
           )}
@@ -717,13 +728,14 @@ export default function Dashboard() {
 
         {viewType === "course" && (
           <RightPanel
-            facultyTimetables={facultyTimetables}
-            venueTimetables={venueTimetables}
+            facultyCards={facultyCards}
+            venueCards={venueCards}
             days={days}
             periods={periods}
             courses={courses}
             faculties={faculties}
             venues={venues}
+            onDropBlock={handleVenueDrop}
           />
         )}
       </div>
@@ -733,8 +745,7 @@ export default function Dashboard() {
       <EditClassModal
         open={Boolean(modalState)}
         initial={modalState}
-        course={currentCourse}
-        courses={courses}
+        course={course}
         faculties={faculties}
         venues={venues}
         days={days}

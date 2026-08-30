@@ -4,6 +4,8 @@ import {
   getCourses,
   getCourseById,
   createCourse,
+  getAvailableSubjects,
+  addSubjectToCourse,
 } from "../controllers/courseController.js";
 import { assignFacultyToSubject } from "../controllers/courseSubjectController.js";
 import protect from "../middleware/authMiddleware.js";
@@ -22,6 +24,10 @@ router.post("/", createCourse);
 
 // Get all courses
 router.get("/", getCourses);
+
+router.get("/:courseId/available-subjects", protect, getAvailableSubjects);
+
+router.post("/:courseId/subjects", protect, addSubjectToCourse);
 
 // Get single course
 router.get("/:id", getCourseById);

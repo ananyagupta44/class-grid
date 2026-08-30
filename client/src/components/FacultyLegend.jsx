@@ -1,13 +1,19 @@
 "use client";
 
 import styles from "./FacultyLegend.module.css";
+import { useState } from "react";
 
 export default function FacultyLegend({
   legend = [],
   faculties = [],
+  courseId,
   onAssignFaculty,
   onDrop,
+  availableSubjects = [],
+  onAddSubject,
 }) {
+  const [showSubjects, setShowSubjects] = useState(false);
+
   if (!legend.length) {
     return (
       <section className={styles.panel}>
@@ -25,15 +31,10 @@ export default function FacultyLegend({
       "application/json",
       JSON.stringify({
         kind: "legend",
-
-        courseId: item.courseId,
-
-        subjectId: item.subject.id,
-
+        courseId,
+        subjectId: item.subject?.id,
         facultyId: item.faculty?.id || "",
-
         blockType: block.type,
-
         blockNumber: block.number,
       }),
     );
@@ -69,7 +70,38 @@ export default function FacultyLegend({
 
           <h2>Classes to schedule</h2>
         </div>
+
+        <button
+          type="button"
+          className={styles.addSubject}
+          onClick={() => setShowSubjects((prev) => !prev)}
+        >
+          + Add Subject
+        </button>
       </div>
+      {showSubjects && (
+        <div className={styles.subjectPicker}>
+          <select
+            defaultValue=""
+            onChange={(event) => {
+              if (!event.target.value) return;
+
+              onAddSubject?.(event.target.value);
+
+              event.target.value = "";
+              setShowSubjects(false);
+            }}
+          >
+            <option value="">Select subject to add</option>
+
+            {availableSubjects.map((subject) => (
+              <option key={subject._id} value={subject._id}>
+                {subject.subjectId} — {subject.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className={styles.subjectList}>
         {legend.map((item) => {

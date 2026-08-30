@@ -2,6 +2,143 @@ import TimetableEntry from "../models/TimetableEntry.js";
 import Course from "../models/Course.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
+import Subject from "../models/Subject.js";
+
+const PERIODS = [
+  {
+    id: "p1",
+    label: "09:00 - 10:00",
+    isBreak: false,
+  },
+  {
+    id: "p2",
+    label: "10:00 - 11:00",
+    isBreak: false,
+  },
+  {
+    id: "p3",
+    label: "11:00 - 12:00",
+    isBreak: false,
+  },
+  {
+    id: "break1",
+    label: "12:00 - 12:30",
+    isBreak: true,
+  },
+  {
+    id: "p4",
+    label: "12:30 - 01:30",
+    isBreak: false,
+  },
+  {
+    id: "p5",
+    label: "01:30 - 02:30",
+    isBreak: false,
+  },
+  {
+    id: "p6",
+    label: "02:30 - 03:30",
+    isBreak: false,
+  },
+  {
+    id: "p7",
+    label: "03:30 - 04:30",
+    isBreak: false,
+  },
+];
+
+function getRequiredPeriods(startPeriodId, duration) {
+  const startIndex = PERIODS.findIndex((period) => period.id === startPeriodId);
+
+  if (startIndex === -1) {
+    return [];
+  }
+
+  const result = [];
+
+  for (let i = startIndex; i < startIndex + duration; i++) {
+    const period = PERIODS[i];
+
+    if (!period || period.isBreak) {
+      return [];
+    }
+
+    result.push(period.id);
+  }
+
+  return result;
+}
+
+function getClassDuration(subject, duration) {
+  if (subject.type !== "lab") {
+    return 1;
+  }
+
+  return Math.min(
+    Math.max(Number(duration) || Number(subject.labDuration) || 1, 1),
+    3,
+  );
+}
+
+async function checkConflict({
+  session,
+  course,
+  faculty,
+  venue,
+  day,
+  periodIds,
+  excludeId = null,
+}) {
+  const filter = {
+    session,
+    day,
+    periodId: {
+      $in: periodIds,
+    },
+    $or: [{ course }, { faculty }, { venue }],
+  };
+
+  if (excludeId) {
+    filter._id = {
+      $ne: excludeId,
+    };
+  }
+
+  const conflict = await TimetableEntry.findOne(filter);
+
+  if (!conflict) {
+    return {
+      ok: true,
+    };
+  }
+
+  if (String(conflict.course) === String(course)) {
+    return {
+      ok: false,
+      reason:
+        "This course already has a class in one or more selected periods.",
+    };
+  }
+
+  if (String(conflict.faculty) === String(faculty)) {
+    return {
+      ok: false,
+      reason: "Faculty is already scheduled in one or more selected periods.",
+    };
+  }
+
+  if (String(conflict.venue) === String(venue)) {
+    return {
+      ok: false,
+      reason: "Venue is already occupied in one or more selected periods.",
+    };
+  }
+
+  return {
+    ok: false,
+    reason: "This time slot is already occupied.",
+  };
+}
 
 // ==================================================
 // GET TIMETABLE
@@ -28,13 +165,19 @@ export const getTimetable = async (req, res) => {
         populate: [
           {
             path: "subjects.subject",
-            select: "subjectId name noOfClasses type credits ltp category",
+            select:
+              "subjectId name noOfClasses type credits ltp category labDuration",
           },
           {
             path: "subjects.faculty",
             select: "facultyId name designation",
           },
         ],
+      })
+      .populate({
+        path: "subject",
+        select:
+          "subjectId name noOfClasses type credits ltp category labDuration",
       })
       .populate({
         path: "faculty",
@@ -69,90 +212,13 @@ export const getTimetable = async (req, res) => {
 };
 
 // ==================================================
-// CHECK CONFLICT
-// ==================================================
-
-async function checkConflict({
-  session,
-  course,
-  faculty,
-  venue,
-  day,
-  periodId,
-  excludeId = null,
-}) {
-  const baseFilter = {
-    session,
-    day,
-    periodId,
-  };
-
-  if (excludeId) {
-    baseFilter._id = {
-      $ne: excludeId,
-    };
-  }
-
-  // -----------------------------------------------
-  // Course conflict
-  // -----------------------------------------------
-
-  const courseConflict = await TimetableEntry.findOne({
-    ...baseFilter,
-    course,
-  });
-
-  if (courseConflict) {
-    return {
-      ok: false,
-      reason: "This course already has a class in this time slot.",
-    };
-  }
-
-  // -----------------------------------------------
-  // Faculty conflict
-  // -----------------------------------------------
-
-  const facultyConflict = await TimetableEntry.findOne({
-    ...baseFilter,
-    faculty,
-  });
-
-  if (facultyConflict) {
-    return {
-      ok: false,
-      reason: "This faculty member already has a class in this time slot.",
-    };
-  }
-
-  // -----------------------------------------------
-  // Venue conflict
-  // -----------------------------------------------
-
-  const venueConflict = await TimetableEntry.findOne({
-    ...baseFilter,
-    venue,
-  });
-
-  if (venueConflict) {
-    return {
-      ok: false,
-      reason: "This venue is already occupied in this time slot.",
-    };
-  }
-
-  return {
-    ok: true,
-  };
-}
-
-// ==================================================
 // CREATE CLASS
 // ==================================================
 
 export const createTimetableEntry = async (req, res) => {
   try {
-    const { courseId, subjectId, facultyId, venueId, day, periodId } = req.body;
+    const { courseId, subjectId, facultyId, venueId, day, periodId, duration } =
+      req.body;
 
     if (
       !courseId ||
@@ -165,6 +231,15 @@ export const createTimetableEntry = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Course, subject, faculty, venue, day and period are required",
+      });
+    }
+
+    const subject = await Subject.findById(subjectId);
+
+    if (!subject) {
+      return res.status(404).json({
+        success: false,
+        message: "Subject not found",
       });
     }
 
@@ -198,40 +273,33 @@ export const createTimetableEntry = async (req, res) => {
       });
     }
 
-    const existing = await TimetableEntry.findOne({
-      course: courseId,
-      day,
-      periodId,
-    });
-    const facultyConflict = await TimetableEntry.findOne({
-      faculty: facultyId,
-      day,
-      periodId,
-    });
+    const classDuration = getClassDuration(subject, duration);
 
-    if (facultyConflict) {
+    const requiredPeriods = getRequiredPeriods(periodId, classDuration);
+
+    if (requiredPeriods.length !== classDuration) {
       return res.status(409).json({
         success: false,
-        message: "Faculty is already scheduled in this slot",
+        message:
+          classDuration > 1
+            ? `This class requires ${classDuration} consecutive periods, but there is not enough continuous time from the selected period.`
+            : "Invalid period selected.",
       });
     }
 
-    const venueConflict = await TimetableEntry.findOne({
+    const conflict = await checkConflict({
+      session: course.session,
+      course: courseId,
+      faculty: facultyId,
       venue: venueId,
       day,
-      periodId,
+      periodIds: requiredPeriods,
     });
 
-    if (venueConflict) {
+    if (!conflict.ok) {
       return res.status(409).json({
         success: false,
-        message: "Venue is already occupied in this slot",
-      });
-    }
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        message: "This course already has a class in this slot",
+        message: conflict.reason,
       });
     }
 
@@ -243,6 +311,7 @@ export const createTimetableEntry = async (req, res) => {
       venue: venueId,
       day,
       periodId,
+      duration: classDuration,
     });
 
     const populated = await TimetableEntry.findById(entry._id)
@@ -276,7 +345,8 @@ export const updateTimetableEntry = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { courseId, facultyId, venueId, day, periodId } = req.body;
+    const { courseId, subjectId, facultyId, venueId, day, periodId, duration } =
+      req.body;
 
     const existing = await TimetableEntry.findById(id);
 
@@ -296,19 +366,38 @@ export const updateTimetableEntry = async (req, res) => {
       });
     }
 
+    const actualSubjectId = subjectId || existing.subject;
+
+    const subject = await Subject.findById(actualSubjectId);
+
+    if (!subject) {
+      return res.status(404).json({
+        success: false,
+        message: "Subject not found.",
+      });
+    }
+
+    const classDuration = getClassDuration(
+      subject,
+      duration || existing.duration || 1,
+    );
+
+    const requiredPeriods = getRequiredPeriods(periodId, classDuration);
+
+    if (requiredPeriods.length !== classDuration) {
+      return res.status(409).json({
+        success: false,
+        message: `This class requires ${classDuration} consecutive periods, but there is not enough continuous time from the selected period.`,
+      });
+    }
+
     const conflict = await checkConflict({
       session: course.session,
-
       course: course._id,
-
       faculty: facultyId,
-
       venue: venueId,
-
       day,
-
-      periodId,
-
+      periodIds: requiredPeriods,
       excludeId: existing._id,
     });
 
@@ -323,6 +412,8 @@ export const updateTimetableEntry = async (req, res) => {
 
     existing.course = course._id;
 
+    existing.subject = actualSubjectId;
+
     existing.faculty = facultyId;
 
     existing.venue = venueId;
@@ -330,6 +421,8 @@ export const updateTimetableEntry = async (req, res) => {
     existing.day = day;
 
     existing.periodId = periodId;
+
+    existing.duration = classDuration;
 
     await existing.save();
 
@@ -339,18 +432,26 @@ export const updateTimetableEntry = async (req, res) => {
         select: "courseId semester noOfStudents subjects session",
       })
       .populate({
+        path: "subject",
+        select:
+          "subjectId name noOfClasses type credits ltp category labDuration",
+      })
+      .populate({
         path: "faculty",
         select: "facultyId name designation",
       })
       .populate({
         path: "venue",
         select: "roomNo capacity type category",
+      })
+      .populate({
+        path: "session",
+        select: "sessionId",
       });
 
     return res.status(200).json({
       success: true,
       message: "Class updated successfully.",
-
       entry: populatedEntry,
     });
   } catch (error) {

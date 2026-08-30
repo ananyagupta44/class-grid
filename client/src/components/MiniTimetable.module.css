@@ -54,13 +54,15 @@
   color: var(--ink);
 }
 
+
+
 .header p:last-child {
   margin: 0.1rem 0 0;
   font-size: 0.6rem;
   color: var(--ink-muted);
 }
 
-.dropHint {
+.dropHint { 
   flex: 0 0 auto;
   font-size: 0.58rem;
   font-weight: 700;
@@ -77,12 +79,21 @@
 
 .period {
   min-width: 0;
+  padding: 0.25rem 0.05rem;
+
   text-align: center;
+
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.5rem;
+  font-size: 0.48rem;
+  line-height: 1.1;
+
   color: var(--ink-muted);
-  padding-bottom: 0.15rem;
+
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .row {

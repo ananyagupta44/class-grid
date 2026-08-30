@@ -4,63 +4,174 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
-.grid {
+.headerRow {
   display: grid;
-  min-width: 500px;
+  min-width: 796px;
 }
 
 .corner {
-  padding: 0.45rem;
+  min-height: 3rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.4rem;
+
   font-size: 0.52rem;
   font-weight: 700;
+
   color: var(--ink-muted);
+
   border-bottom: 1px solid var(--line);
 }
 
 .periodHeader {
-  padding: 0.45rem 0.25rem;
+  min-height: 3rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.3rem;
+
   text-align: center;
+
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.55rem;
+  font-size: 0.52rem;
+  line-height: 1.2;
+
   color: var(--ink-muted);
+
   border-left: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  white-space: nowrap;
 }
 
-.rowGroup {
-  display: contents;
+.dayRow {
+  display: grid;
+
+  grid-template-columns: 58px minmax(0, 1fr);
+
+  min-width: 796px;
 }
 
 .dayCell {
-  min-height: 3.25rem;
+  min-height: 4rem;
+
   display: flex;
   align-items: center;
+
   padding: 0.45rem;
+
   font-size: 0.58rem;
   font-weight: 700;
   text-transform: uppercase;
+
   color: var(--ink);
+
   background: var(--parchment);
+
+  border-top: 1px solid var(--line);
+}
+
+.slots {
+  display: grid;
+
+  position: relative;
+
+  min-width: 0;
+  min-height: 4rem;
+
+  grid-auto-flow: row;
+
   border-top: 1px solid var(--line);
 }
 
 .slotCell {
-  min-height: 3.25rem;
+  grid-row: 1;
+
+  min-width: 0;
+  min-height: 4rem;
+
   padding: 0.2rem;
+
   border-left: 1px solid var(--line);
-  border-top: 1px solid var(--line);
+
+  cursor: pointer;
 }
 
-@media (max-width: 760px) {
+.slotCell:hover {
+  background: rgba(232, 163, 61, 0.05);
+}
+
+.addHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 100%;
+
+  color: var(--ink-muted);
+
+  opacity: 0;
+}
+
+.slotCell:hover .addHint {
+  opacity: 0.5;
+}
+
+/* THIS controls the actual class width */
+
+.entryPosition {
+  grid-row: 1;
+
+  min-width: 0;
+  width: 100%;
+
+  height: calc(100% - 0.4rem);
+
+  margin-top: 0.2rem;
+
+  z-index: 5;
+
+  overflow: hidden;
+}
+
+
+@media (max-width: 900px) {
   .table {
     overflow-x: auto;
   }
 
-  .grid {
-    min-width: 560px;
+  .headerRow {
+    grid-template-columns:
+      58px repeat(
+        9,
+        82px
+      );
+
+    width: max-content;
+  }
+
+  .dayRow {
+    grid-template-columns:
+      58px
+      738px;
+
+    width: max-content;
+  }
+
+  .slots {
+    width: 738px;
+
+    grid-template-columns:
+      repeat(
+        9,
+        82px
+      ) !important;
   }
 }

@@ -11,7 +11,7 @@ export default function RightPanel({
   courses = [],
   faculties = [],
   venues = [],
-  onDropBlock = [],
+  onDropBlock = null,
 }) {
   return (
     <aside className={styles.panelArea}>
@@ -21,19 +21,20 @@ export default function RightPanel({
             <span>Faculty Timetables</span>
             <h2>Faculty TT</h2>
           </div>
+
           <small>Hover to expand</small>
         </div>
 
         <div className={styles.cards}>
-          {facultyCards.length ? (
-            facultyCards.map((card) => (
+          {facultyCards.length > 0 ? (
+            facultyCards.map((card, index) => (
               <MiniTimetable
-                key={card.id}
+                key={card.id || card.facultyId || `faculty-${index}`}
                 title={card.title}
                 subtitle={card.subtitle}
                 days={days}
                 periods={periods}
-                entries={card.entries}
+                entries={card.entries || []}
                 courses={courses}
                 faculties={faculties}
                 venues={venues}
@@ -52,19 +53,20 @@ export default function RightPanel({
             <span>Venue Timetables</span>
             <h2>Venue TT</h2>
           </div>
+
           <small>Drag class blocks here</small>
         </div>
 
         <div className={styles.cards}>
-          {venueCards.length ? (
-            venueCards.map((card) => (
+          {venueCards.length > 0 ? (
+            venueCards.map((card, index) => (
               <MiniTimetable
-                key={card.id}
+                key={card.id || card.venueId || `venue-${index}`}
                 title={card.title}
                 subtitle={card.subtitle}
                 days={days}
                 periods={periods}
-                entries={card.entries}
+                entries={card.entries || []}
                 courses={courses}
                 faculties={faculties}
                 venues={venues}

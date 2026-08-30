@@ -336,3 +336,113 @@ export const getCourseById = async (req, res) => {
     });
   }
 };
+
+export const getAvailableSubjects = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    const assignedSubjectIds = course.subjects
+      .map((item) => item.subject)
+      .filter(Boolean)
+      .map((id) => String(id));
+
+    const subjects = await Subject.find({
+      _id: {
+        $nin: assignedSubjectIds,
+      },
+    }).sort({
+      name: 1,
+    });
+
+    return res.status(200).json({
+      success: true,
+      subjects,
+    });
+  } catch (error) {
+    console.error("GET AVAILABLE SUBJECTS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get available subjects",
+      error: error.message,
+    });
+  }
+};
+
+export const addSubjectToCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { subjectId } = req.body;
+
+    if (!subjectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Subject ID is required",
+      });
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    const subject = await Subject.findById(subjectId);
+
+    if (!subject) {
+      return res.status(404).json({
+        success: false,
+        message: "Subject not found",
+      });
+    }
+
+    const alreadyExists = course.subjects.some(
+      (item) => String(item.subject) === String(subjectId),
+    );
+
+    if (alreadyExists) {
+      return res.status(409).json({
+        success: false,
+        message: "Subject is already assigned to this course",
+      });
+    }
+
+    course.subjects.push({
+      subject: subjectId,
+      faculty: null,
+    });
+
+    await course.save();
+
+    const updatedCourse = await Course.findById(courseId)
+      .populate("session")
+      .populate("subjects.subject")
+      .populate("subjects.faculty");
+
+    return res.status(201).json({
+      success: true,
+      message: "Subject added to course",
+      course: updatedCourse,
+    });
+  } catch (error) {
+    console.error("ADD SUBJECT TO COURSE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add subject to course",
+      error: error.message,
+    });
+  }
+};

@@ -47,6 +47,13 @@ const subjectSchema = new mongoose.Schema(
       default: "course",
     },
 
+    labDuration: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max:3,
+    },
+
     // Courses in which this subject is offered
     // Empty when the subject is first created
     courses: [

@@ -1,114 +1,328 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import Modal from "./Modal";
+
 import styles from "./EditClassModal.module.css";
 
-// Handles both creating a new class in an empty slot and editing an existing
-// one. `initial` carries day/periodId (and the entry id, when editing).
-export default function EditClassModal({ open, initial, courses, faculties, venues, days, periods, onClose, onSave, onDelete }) {
+export default function EditClassModal({
+  open,
+  initial,
+  course,
+  faculties = [],
+  venues = [],
+  days = [],
+  periods = [],
+  onClose,
+  onSave,
+  onDelete,
+}) {
   const [form, setForm] = useState(initial || {});
   const [error, setError] = useState("");
+  const [duration, setDuration] = useState(initial?.duration || 1);
 
   useEffect(() => {
-    setForm(initial || {});
+    if (!open) return;
+
+    setForm({
+      ...initial,
+      courseId: initial?.courseId || course?._id || course?.id,
+    });
+
+    setDuration(Number(initial?.duration) || 1);
+
     setError("");
-  }, [initial, open]);
+  }, [open, initial, course]);
+
+  const subjects = useMemo(() => course?.subjects || [], [course]);
+
+  const selectedAssignment = useMemo(() => {
+    return subjects.find(
+      (item) =>
+        String(item.subject?._id || item.subject?.id) ===
+        String(form.subjectId),
+    );
+  }, [subjects, form.subjectId]);
+
+  const selectedSubject = selectedAssignment?.subject || null;
+
+  const isLab = selectedSubject?.type === "lab";
+
+  function update(field, value) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  function handleSubjectChange(subjectId) {
+    const assignment = subjects.find(
+      (item) =>
+        String(item.subject?._id || item.subject?.id) === String(subjectId),
+    );
+
+    setForm((prev) => ({
+      ...prev,
+
+      subjectId,
+
+      facultyId: assignment?.faculty?._id || assignment?.faculty?.id || "",
+    }));
+
+    /*
+     * Normal classes are always one period.
+     * When switching to a lab, default to 1
+     * and let the user choose 1/2/3.
+     */
+    setDuration(
+      assignment?.subject?.type === "lab" ? Number(initial?.duration) || 1 : 1,
+    );
+  }
+
+  async function handleSave() {
+    setError("");
+
+    if (
+      !form.subjectId ||
+      !form.facultyId ||
+      !form.venueId ||
+      !form.day ||
+      !form.periodId
+    ) {
+      setError("Please select subject, faculty, venue, day and time.");
+
+      return;
+    }
+
+    const classDuration = isLab
+      ? Math.min(Math.max(Number(duration) || 1, 1), 3)
+      : 1;
+
+    const payload = {
+      ...form,
+
+      courseId: form.courseId || course?._id || course?.id,
+
+      duration: classDuration,
+    };
+
+    const result = await onSave(payload);
+
+    if (!result?.ok) {
+      setError(
+        result?.reason || result?.message || "Unable to schedule this class.",
+      );
+
+      return;
+    }
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return;
+
+    const id = form.id || form._id;
+
+    if (!id) return;
+
+    const result = await onDelete(id);
+
+    if (!result?.ok) {
+      setError(
+        result?.reason || result?.message || "Unable to delete this class.",
+      );
+    }
+  }
 
   if (!open) return null;
 
-  const teachingPeriods = periods.filter((p) => !p.isBreak);
-  const isEditing = Boolean(initial?.id);
-
-  function update(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function handleSave() {
-    if (!form.courseId || !form.facultyId || !form.venueId || !form.day || !form.periodId) {
-      setError("Fill in every field before saving.");
-      return;
-    }
-    const result = onSave(form);
-    if (result && result.ok === false) {
-      setError(result.reason || "That slot conflicts with an existing class.");
-    }
-  }
+  const isEditing = Boolean(initial?.id || initial?._id);
 
   return (
     <Modal
       open={open}
-      title={isEditing ? "Edit class" : "Schedule a class"}
+      title={isEditing ? "Edit class" : "Add class"}
       onClose={onClose}
-      footer={
-        <>
-          {isEditing ? (
-            <button type="button" className={styles.dangerBtn} onClick={() => onDelete(form.id)}>
-              Remove
-            </button>
-          ) : null}
-          <button type="button" className={styles.secondaryBtn} onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave}>
-            Save class
-          </button>
-        </>
-      }
     >
-      <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <span>Day</span>
-          <select value={form.day || ""} onChange={(e) => update("day", e.target.value)}>
-            <option value="" disabled>Select day</option>
-            {days.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </label>
+      <div className={styles.form}>
+        {/* SUBJECT */}
 
-        <label className={styles.field}>
-          <span>Time slot</span>
-          <select value={form.periodId || ""} onChange={(e) => update("periodId", e.target.value)}>
-            <option value="" disabled>Select time</option>
-            {teachingPeriods.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.field}>
+          <label htmlFor="subject">Subject</label>
 
-        <label className={styles.field}>
-          <span>Course</span>
-          <select value={form.courseId || ""} onChange={(e) => update("courseId", e.target.value)}>
-            <option value="" disabled>Select course</option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>{c.code} &middot; {c.name}</option>
-            ))}
-          </select>
-        </label>
+          <select
+            id="subject"
+            value={form.subjectId || ""}
+            onChange={(e) => handleSubjectChange(e.target.value)}
+          >
+            <option value="">Select subject</option>
 
-        <label className={styles.field}>
-          <span>Faculty</span>
-          <select value={form.facultyId || ""} onChange={(e) => update("facultyId", e.target.value)}>
-            <option value="" disabled>Select faculty</option>
-            {faculties.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-        </label>
+            {subjects.map((item) => {
+              const subject = item.subject;
 
-        <label className={styles.field}>
-          <span>Venue</span>
-          <select value={form.venueId || ""} onChange={(e) => update("venueId", e.target.value)}>
-            <option value="" disabled>Select venue</option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
+              if (!subject) return null;
+
+              const subjectId = subject._id || subject.id;
+
+              return (
+                <option key={subjectId} value={subjectId}>
+                  {subject.subjectId} — {subject.name}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* LAB DURATION */}
+
+        {isLab && (
+          <div className={styles.field}>
+            <label htmlFor="duration">Lab Duration</label>
+
+            <select
+              id="duration"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+            >
+              <option value={1}>1 period</option>
+
+              <option value={2}>2 periods</option>
+
+              <option value={3}>3 periods</option>
+            </select>
+
+            <small>
+              This practical will occupy {duration} consecutive{" "}
+              {duration === 1 ? "period" : "periods"}.
+            </small>
+          </div>
+        )}
+
+        {/* FACULTY */}
+
+        <div className={styles.field}>
+          <label htmlFor="faculty">Faculty</label>
+
+          <select
+            id="faculty"
+            value={form.facultyId || ""}
+            onChange={(e) => update("facultyId", e.target.value)}
+          >
+            <option value="">Select faculty</option>
+
+            {faculties.map((faculty) => {
+              const facultyId = faculty._id || faculty.id;
+
+              return (
+                <option key={facultyId} value={facultyId}>
+                  {faculty.name}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* VENUE */}
+
+        <div className={styles.field}>
+          <label htmlFor="venue">Venue</label>
+
+          <select
+            id="venue"
+            value={form.venueId || ""}
+            onChange={(e) => update("venueId", e.target.value)}
+          >
+            <option value="">Select venue</option>
+
+            {venues.map((venue) => {
+              const venueId = venue._id || venue.id;
+
+              return (
+                <option key={venueId} value={venueId}>
+                  {venue.roomNo || venue.name}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* DAY */}
+
+        <div className={styles.field}>
+          <label htmlFor="day">Day</label>
+
+          <select
+            id="day"
+            value={form.day || ""}
+            onChange={(e) => update("day", e.target.value)}
+          >
+            <option value="">Select day</option>
+
+            {days.map((day) => (
+              <option key={day} value={day}>
+                {day}
+              </option>
             ))}
           </select>
-        </label>
+        </div>
+
+        {/* STARTING PERIOD */}
+
+        <div className={styles.field}>
+          <label htmlFor="period">Start Time</label>
+
+          <select
+            id="period"
+            value={form.periodId || ""}
+            onChange={(e) => update("periodId", e.target.value)}
+          >
+            <option value="">Select starting time</option>
+
+            {periods
+              .filter((period) => !period.isBreak)
+              .map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}
+          </select>
+
+          {isLab && (
+            <small>
+              This is the starting period. The class will continue for{" "}
+              {duration} {duration === 1 ? "period" : "periods"}.
+            </small>
+          )}
+        </div>
+
+        {/* ERROR */}
+
+        {error && <div className={styles.error}>{error}</div>}
+
+        {/* ACTIONS */}
+
+        <div className={styles.actions}>
+          {isEditing && onDelete && (
+            <button
+              type="button"
+              className={styles.deleteButton}
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
+          )}
+
+          <div className={styles.actionRight}>
+            <button type="button" onClick={onClose}>
+              Cancel
+            </button>
+
+            <button type="button" onClick={handleSave}>
+              {isEditing ? "Save Changes" : "Add Class"}
+            </button>
+          </div>
+        </div>
       </div>
-
-      {error ? <p className={styles.error}>{error}</p> : null}
     </Modal>
   );
 }
