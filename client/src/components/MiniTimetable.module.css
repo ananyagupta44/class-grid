@@ -1,27 +1,27 @@
+
 .card {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
+
   box-sizing: border-box;
 
   background: var(--parchment-card);
+
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: 0.85rem;
 
-  /* No expansion */
+  box-shadow: var(--shadow-card);
+
+  padding: 0.65rem;
+
+  overflow: hidden;
+
   transform: none;
   transition: none;
 }
 
-/* .card:hover {
-  width: 27rem;
-  flex-basis: 27rem;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-panel);
-  position: relative;
-  z-index: 4;
-} */
+/* ================= ACCENTS ================= */
 
 .accent-faculty {
   border-top: 3px solid #4f7a6d;
@@ -31,106 +31,241 @@
   border-top: 3px solid #b0654a;
 }
 
+/* ================= HEADER ================= */
+
 .header {
+  width: 100%;
+  min-width: 0;
+
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.55rem;
+
+  gap: 0.35rem;
+
+  margin-bottom: 0.45rem;
+
+  box-sizing: border-box;
+}
+
+.headerInfo {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .kicker {
   margin: 0 0 0.1rem;
-  font-size: 0.58rem;
+
+  font-size: 0.52rem;
   font-weight: 700;
+
   text-transform: uppercase;
   letter-spacing: 0.06em;
+
   color: var(--ink-muted);
 }
 
 .header h3 {
   margin: 0;
-  font-size: 0.78rem;
+
+  font-size: 0.72rem;
+
   color: var(--ink);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-
 
 .header p:last-child {
   margin: 0.1rem 0 0;
-  font-size: 0.6rem;
+
+  font-size: 0.54rem;
+
   color: var(--ink-muted);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dropHint { 
+/* ================= DROP HINT ================= */
+
+.dropHint {
   flex: 0 0 auto;
-  font-size: 0.58rem;
+
+  font-size: 0.5rem;
   font-weight: 700;
+
   color: var(--marigold-dark);
+
   background: #fdf3e2;
+
   border-radius: 4px;
-  padding: 0.25rem 0.35rem;
+
+  padding: 0.2rem 0.28rem;
+
+  white-space: nowrap;
 }
+
+/* ================= GRID WRAPPER ================= */
+
+.gridScroll {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
+  /*
+   * No horizontal scrolling.
+   * The grid must fit the card exactly.
+   */
+  overflow: hidden;
+
+  box-sizing: border-box;
+}
+
+/* ================= GRID ================= */
 
 .grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: grid;
   gap: 2px;
+  box-sizing: border-box;
 }
+
+/* ================= PERIOD HEADER ================= */
 
 .period {
   min-width: 0;
-  padding: 0.25rem 0.05rem;
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 0.2rem 0.02rem;
 
   text-align: center;
 
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.48rem;
-  line-height: 1.1;
+
+  font-size: 0.39rem;
+  line-height: 1.05;
 
   color: var(--ink-muted);
 
   border-left: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 
+  /*
+   * Don't allow long time labels to
+   * increase the column width.
+   */
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: clip;
 }
+
+/* ================= CORNER ================= */
+
+.corner {
+  min-width: 0;
+}
+
+/* ================= ROW ================= */
 
 .row {
   display: contents;
 }
 
+/* ================= DAY ================= */
+
 .day {
+  min-width: 0;
+  width: 34px;
+
   display: flex;
   align-items: center;
-  font-size: 0.55rem;
+  justify-content: center;
+
+  box-sizing: border-box;
+
+  font-size: 0.5rem;
   font-weight: 700;
+
   color: var(--ink-muted);
 }
 
+/* ================= CELL ================= */
+
 .cell {
+  min-width: 0;
+  width: 100%;
   min-height: 2.25rem;
+  box-sizing: border-box;
   border-radius: 3px;
+  cursor: pointer;
   background: var(--parchment);
   border: 1px solid transparent;
-  transition: border-color 0.12s var(--ease), background 0.12s var(--ease);
+  overflow: hidden;
+  transition:
+    border-color 0.12s var(--ease),
+    background 0.12s var(--ease);
 }
+
+/* ================= DROP ================= */
 
 .dropCell:hover {
   border-color: var(--marigold);
+
   background: rgba(232, 163, 61, 0.1);
 }
+
+/* ================= PLUS ================= */
 
 .plus {
   display: grid;
   place-items: center;
+
   width: 100%;
   height: 100%;
+
   color: var(--ink-muted);
+
   opacity: 0;
+
   transition: opacity 0.12s var(--ease);
 }
 
 .dropCell:hover .plus {
   opacity: 1;
 }
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 700px) {
+  .card {
+    padding: 0.5rem;
+  }
+
+  .period {
+    font-size: 0.34rem;
+  }
+
+  .day {
+    width: 26px;
+    font-size: 0.44rem;
+  }
+
+  .grid {
+    grid-template-columns: 26px repeat(
+      9,
+      minmax(0, 1fr)
+    ) !important;
+  }
+
+  .cell {
+    min-height: 1.7rem;
+  }
+}
+

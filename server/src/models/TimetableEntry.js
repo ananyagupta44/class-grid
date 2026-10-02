@@ -54,6 +54,11 @@ const timetableEntrySchema = new mongoose.Schema(
       min: 1,
       max: 3,
     },
+    comboGroupId: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

@@ -71,9 +71,6 @@ async function apiRequest(endpoint, options = {}) {
 
   const url = `${API_URL}${endpoint}`;
 
-  console.log("API REQUEST:", url);
-  console.log("TOKEN EXISTS:", Boolean(token));
-
   const response = await fetch(url, {
     ...options,
 
@@ -101,13 +98,6 @@ async function apiRequest(endpoint, options = {}) {
       raw: text,
     };
   }
-
-  console.log("API RESPONSE:", {
-    url,
-    status: response.status,
-    statusText: response.statusText,
-    data,
-  });
 
   if (!response.ok) {
     throw new Error(
@@ -213,14 +203,12 @@ function normalizeEntry(entry) {
     id: entry._id,
     day: entry.day,
     periodId: entry.periodId,
-
     duration: entry.duration || 1,
-
     courseId: idOf(entry.course),
     subjectId: idOf(entry.subject),
     facultyId: idOf(entry.faculty),
     venueId: idOf(entry.venue),
-
+    comboGroupId: entry.comboGroupId,
     course: entry.course,
     subject: entry.subject,
     faculty: entry.faculty,
@@ -273,12 +261,6 @@ export function TimetableProvider({ children }) {
 
       const response = await apiRequest(`/dashboard/${selectedCourseId}`);
 
-      console.log("FULL DASHBOARD RESPONSE:", response);
-
-      console.log("COURSE SUBJECTS:", response.course?.subjects || []);
-
-      console.log("LEGEND:", response.legend || []);
-
       // COURSE
       setCourses([normalizeCourse(response.course)]);
 
@@ -289,7 +271,7 @@ export function TimetableProvider({ children }) {
       setVenues((response.venues || []).map(normalizeVenue));
 
       // ENTRIES
-      setEntries((response.entries || []).map(normalizeEntry));
+      await loadAllEntries();
 
       setLegend(response.legend || []);
     } catch (err) {
@@ -308,7 +290,17 @@ export function TimetableProvider({ children }) {
   // ==================================================
 
   async function addEntry(form) {
+    console.log("🔥 TIMETABLE CONTEXT ADD ENTRY CALLED", form);
     try {
+      console.log("ADDING LEGEND CLASS:", {
+        courseId: form.courseId,
+        subjectId: form.subjectId,
+        facultyId: form.facultyId,
+        venueId: form.venueId,
+        day: form.day,
+        periodId: form.periodId,
+        duration: form.duration || 1,
+      });
       const response = await apiRequest("/timetable", {
         method: "POST",
 
@@ -330,7 +322,43 @@ export function TimetableProvider({ children }) {
         entry: response.entry,
       };
     } catch (err) {
-      console.error("ADD ENTRY:", err);
+      console.error("ADD ENTRY ERROR:", err);
+      console.error("ADD ENTRY ERROR MESSAGE:", err.message);
+      console.error("ADD ENTRY FORM:", form);
+
+      return {
+        ok: false,
+        reason: err.message || "Unable to schedule this class.",
+      };
+    }
+  }
+
+  async function addComboEntry(form) {
+    try {
+      const response = await apiRequest("/timetable/combo", {
+        method: "POST",
+
+        body: JSON.stringify({
+          course1Id: form.course1Id,
+          subject1Id: form.subject1Id,
+          course2Id: form.course2Id,
+          subject2Id: form.subject2Id,
+          facultyId: form.facultyId,
+          venueId: form.venueId,
+          day: form.day,
+          periodId: form.periodId,
+          duration: form.duration || 1,
+        }),
+      });
+
+      await loadDashboard();
+
+      return {
+        ok: true,
+        entries: response.entries,
+      };
+    } catch (err) {
+      console.error("ADD COMBO ENTRY:", err);
 
       return {
         ok: false,
@@ -377,6 +405,16 @@ export function TimetableProvider({ children }) {
         ok: false,
         reason: err.message,
       };
+    }
+  }
+
+  async function loadAllEntries() {
+    try {
+      const response = await apiRequest("/timetable");
+
+      setEntries((response.entries || response || []).map(normalizeEntry));
+    } catch (err) {
+      console.error("LOAD ALL ENTRIES:", err);
     }
   }
 
@@ -448,35 +486,22 @@ export function TimetableProvider({ children }) {
 
   const value = {
     days,
-
     periods,
-
     courses,
-
     faculties,
-
     venues,
-
     entries,
-
+    setEntries,
     legend,
-
     currentCourse: course,
-
     selectedCourseId,
-
     loading,
-
     error,
-
     addEntry,
-
+    addComboEntry,
     updateEntry,
-
     deleteEntry,
-
     moveEntry,
-
     refresh,
   };
 

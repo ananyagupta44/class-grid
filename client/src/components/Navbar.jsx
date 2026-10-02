@@ -10,17 +10,31 @@ export default function Navbar() {
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
-        <Link href="/" className={`${styles.logo} font-display`}>
-          ClassGrid
-        </Link>
+        <div className={styles.left}>
+          <Link href="/" className={`${styles.logo} font-display`}>
+            ClassGrid
+          </Link>
+
+          <nav className={styles.mainNav}>
+            <Link href="/home" className={styles.link}>
+              Home
+            </Link>
+
+            <Link href="/dashboard" className={styles.link}>
+              Dashboard
+            </Link>
+          </nav>
+        </div>
 
         <nav className={styles.nav}>
           <Link href="/register" className={styles.link}>
             Student Register
           </Link>
+
           <button className={styles.link} onClick={() => openLogin("student")}>
             Student Login
           </button>
+
           <button className={styles.cta} onClick={() => openLogin("admin")}>
             Admin / Staff Login
           </button>

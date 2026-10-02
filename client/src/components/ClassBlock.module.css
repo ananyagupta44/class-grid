@@ -1,36 +1,23 @@
 .entry {
   display: flex;
-
   width: 100%;
   min-width: 0;
   max-width: 100%;
-
   height: 100%;
   min-height: 0;
-
   box-sizing: border-box;
-
-  display: flex;
   flex-direction: column;
-
-  overflow: hidden;
+  justify-content: center;
   align-items: flex-start;
-
-  gap: 0.12rem;
-
-  padding: 0.35rem;
-
+  gap: 0.05rem;
+  padding: 0.25rem;
   border: 1px solid rgba(232, 163, 61, 0.45);
   border-left: 3px solid var(--marigold);
   border-radius: 5px;
-
   background: #f3ede0;
   color: var(--ink);
-
   text-align: left;
-
   cursor: grab;
-
   overflow: hidden;
 }
 
@@ -43,47 +30,97 @@
   cursor: grabbing;
 }
 
-.top {
-  width: 100%;
-  min-width: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 0.25rem;
-}
-
-.top strong {
-  min-width: 0;
-
-  font-size: 0.65rem;
-  font-weight: 700;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.entry strong,
 .entry > span {
+  display: block;
   width: 100%;
   min-width: 0;
-
-  font-size: 0.58rem;
-  color: var(--ink-muted);
-
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.duration {
-  flex: 0 0 auto !important;
+/*
+ * Full-size blocks: main course TT and the full-page faculty / venue TTs.
+ */
+.course,
+.faculty,
+.venue {
+  padding: 0.4rem;
+  gap: 0.1rem;
+}
 
-  width: auto !important;
-
-  font-size: 0.48rem !important;
+.course strong,
+.faculty strong,
+.venue strong {
+  font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.15;
+}
 
+.course > span,
+.faculty > span,
+.venue > span {
+  font-size: 0.68rem;
+  line-height: 1.15;
+  color: var(--ink-muted);
+}
+
+/*
+ * Compact mode (tiny mini-timetables). Declared after the full-size rules so
+ * it wins.
+ */
+.compact {
+  padding: 0.14rem;
+  gap: 0.025rem;
+  border-left-width: 2px;
+}
+
+.compact strong {
+  font-size: 0.42rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.compact > span {
+  font-size: 0.36rem;
+  line-height: 1;
+}
+
+/* Duration */
+.duration {
+  width: auto !important;
+  flex: 0 0 auto;
+  font-size: 0.64rem !important;
+  font-weight: 700;
+  color: var(--ink-muted);
   white-space: nowrap;
+}
+
+.compact > .duration {
+  font-size: 0.34rem !important;
+}
+
+.comboBadge {
+  width: auto !important;
+  flex: 0 0 auto;
+  padding: 0.08rem 0.25rem;
+  border-radius: 3px;
+  background: var(--marigold);
+  color: var(--slate-dark) !important;
+  font-size: 0.58rem !important;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
+.compact > .comboBadge {
+  font-size: 0.42rem !important;
+}
+
+@media print {
+  .entry {
+    box-shadow: none !important;
+    transform: none !important;
+  }
 }

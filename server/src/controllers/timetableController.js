@@ -3,46 +3,52 @@ import Course from "../models/Course.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
 import Subject from "../models/Subject.js";
+import mongoose from "mongoose";
 
 const PERIODS = [
   {
     id: "p1",
-    label: "09:00 - 10:00",
+    label: "09:00 - 09:50",
     isBreak: false,
   },
   {
     id: "p2",
-    label: "10:00 - 11:00",
+    label: "10:00 - 10:50",
     isBreak: false,
   },
   {
     id: "p3",
-    label: "11:00 - 12:00",
+    label: "11:00 - 11:50",
     isBreak: false,
   },
   {
-    id: "break1",
-    label: "12:00 - 12:30",
-    isBreak: true,
-  },
-  {
     id: "p4",
-    label: "12:30 - 01:30",
+    label: "12:00 - 12:50",
     isBreak: false,
   },
   {
     id: "p5",
-    label: "01:30 - 02:30",
+    label: "01:00 - 01:50",
     isBreak: false,
   },
   {
     id: "p6",
-    label: "02:30 - 03:30",
+    label: "02:00 - 02:50",
     isBreak: false,
   },
   {
     id: "p7",
-    label: "03:30 - 04:30",
+    label: "03:00 - 03:50",
+    isBreak: false,
+  },
+  {
+    id: "p8",
+    label: "04:00 - 04:50",
+    isBreak: false,
+  },
+  {
+    id: "p9",
+    label: "05:00 - 05:50",
     isBreak: false,
   },
 ];
@@ -88,6 +94,7 @@ async function checkConflict({
   day,
   periodIds,
   excludeId = null,
+  comboGroupId = null,
 }) {
   const filter = {
     session,
@@ -98,7 +105,11 @@ async function checkConflict({
     $or: [{ course }, { faculty }, { venue }],
   };
 
-  if (excludeId) {
+  if (comboGroupId) {
+    filter.comboGroupId = {
+      $ne: comboGroupId,
+    };
+  } else if (excludeId) {
     filter._id = {
       $ne: excludeId,
     };
@@ -345,8 +356,16 @@ export const updateTimetableEntry = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { courseId, subjectId, facultyId, venueId, day, periodId, duration } =
-      req.body;
+    const {
+      courseId,
+      subjectId,
+      facultyId,
+      venueId,
+      day,
+      periodId,
+      duration,
+      comboGroupId,
+    } = req.body;
 
     const existing = await TimetableEntry.findById(id);
 
@@ -399,6 +418,7 @@ export const updateTimetableEntry = async (req, res) => {
       day,
       periodIds: requiredPeriods,
       excludeId: existing._id,
+      comboGroupId: comboGroupId || existing.comboGroupId,
     });
 
     if (!conflict.ok) {
@@ -493,6 +513,200 @@ export const deleteTimetableEntry = async (req, res) => {
       success: false,
       message: "Failed to remove class.",
       error: error.message,
+    });
+  }
+};
+
+export const createComboTimetableEntry = async (req, res) => {
+  try {
+    const {
+      course1Id,
+      subject1Id,
+      course2Id,
+      subject2Id,
+      facultyId,
+      venueId,
+      day,
+      periodId,
+      duration = 1,
+    } = req.body;
+
+    // 1. Basic validation
+    if (
+      !course1Id ||
+      !subject1Id ||
+      !course2Id ||
+      !subject2Id ||
+      !facultyId ||
+      !venueId ||
+      !day ||
+      !periodId
+    ) {
+      return res.status(400).json({
+        message: "All combo class fields are required.",
+      });
+    }
+
+    // 2. Same course cannot be combined with itself
+    if (String(course1Id) === String(course2Id)) {
+      return res.status(400).json({
+        message: "A combo class must contain two different courses.",
+      });
+    }
+
+    // 3. Verify courses
+    const [course1, course2] = await Promise.all([
+      Course.findById(course1Id),
+      Course.findById(course2Id),
+    ]);
+
+    if (!course1 || !course2) {
+      return res.status(404).json({
+        message: "One or both courses were not found.",
+      });
+    }
+
+    // 4. Verify subjects
+    const [subject1, subject2] = await Promise.all([
+      Subject.findById(subject1Id),
+      Subject.findById(subject2Id),
+    ]);
+
+    if (!subject1 || !subject2) {
+      return res.status(404).json({
+        message: "One or both subjects were not found.",
+      });
+    }
+
+    // Check that both subjects are taught by the same faculty
+
+    const assignment1 = course1.subjects.find(
+      (item) => String(item.subject) === String(subject1Id),
+    );
+
+    const assignment2 = course2.subjects.find(
+      (item) => String(item.subject) === String(subject2Id),
+    );
+
+    if (!assignment1 || !assignment2) {
+      return res.status(400).json({
+        message: "One or both subjects are not assigned to their courses.",
+      });
+    }
+
+    if (
+      !assignment1.faculty ||
+      !assignment2.faculty ||
+      String(assignment1.faculty) !== String(assignment2.faculty)
+    ) {
+      return res.status(400).json({
+        message:
+          "Both combo subjects must be taught by the same faculty member.",
+      });
+    }
+
+    if (String(assignment1.faculty) !== String(facultyId)) {
+      return res.status(400).json({
+        message: "Selected faculty is not assigned to the first combo subject.",
+      });
+    }
+
+    // 5. Verify faculty and venue
+    const [faculty, venue] = await Promise.all([
+      Faculty.findById(facultyId),
+      Room.findById(venueId),
+    ]);
+
+    if (!faculty) {
+      return res.status(404).json({
+        message: "Faculty not found.",
+      });
+    }
+
+    if (!venue) {
+      return res.status(404).json({
+        message: "Venue not found.",
+      });
+    }
+
+    // 6. Check whether either course is already occupied
+    const courseConflict = await TimetableEntry.findOne({
+      course: { $in: [course1Id, course2Id] },
+      day,
+      periodId,
+    });
+
+    if (courseConflict) {
+      return res.status(409).json({
+        message: "One of the courses already has a class at this time.",
+      });
+    }
+
+    // 7. Check faculty conflict
+    const facultyConflict = await TimetableEntry.findOne({
+      faculty: facultyId,
+      day,
+      periodId,
+    });
+
+    if (facultyConflict) {
+      return res.status(409).json({
+        message: "Faculty is already occupied at this time.",
+      });
+    }
+
+    // 8. Check venue conflict
+    const venueConflict = await TimetableEntry.findOne({
+      venue: venueId,
+      day,
+      periodId,
+    });
+
+    if (venueConflict) {
+      return res.status(409).json({
+        message: "Venue is already occupied at this time.",
+      });
+    }
+
+    // 9. Generate one ID shared by both entries
+    const comboGroupId = new mongoose.Types.ObjectId().toString();
+
+    // 10. Create both entries
+    const entries = await TimetableEntry.insertMany([
+      {
+        course: course1Id,
+        subject: subject1Id,
+        faculty: facultyId,
+        venue: venueId,
+        day,
+        periodId,
+        duration,
+        session: course1.session,
+        comboGroupId,
+      },
+      {
+        course: course2Id,
+        subject: subject2Id,
+        faculty: facultyId,
+        venue: venueId,
+        day,
+        periodId,
+        duration,
+        session: course2.session,
+        comboGroupId,
+      },
+    ]);
+
+    return res.status(201).json({
+      ok: true,
+      comboGroupId,
+      entries,
+    });
+  } catch (error) {
+    console.error("CREATE COMBO CLASS:", error);
+
+    return res.status(500).json({
+      message: error.message,
     });
   }
 };

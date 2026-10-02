@@ -5,6 +5,7 @@ import {
   createTimetableEntry,
   updateTimetableEntry,
   deleteTimetableEntry,
+  createComboTimetableEntry,
 } from "../controllers/timetableController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -12,40 +13,18 @@ import restrictTo from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-
 // Get timetable
-router.get(
-  "/",
-  protect,
-  getTimetable
-);
-
+router.get("/", protect, getTimetable);
 
 // Add class
-router.post(
-  "/",
-  protect,
-  restrictTo("admin"),
-  createTimetableEntry
-);
-
+router.post("/", protect, restrictTo("admin"), createTimetableEntry);
 
 // Edit / move class
-router.put(
-  "/:id",
-  protect,
-  restrictTo("admin"),
-  updateTimetableEntry
-);
-
+router.put("/:id", protect, restrictTo("admin"), updateTimetableEntry);
 
 // Delete class
-router.delete(
-  "/:id",
-  protect,
-  restrictTo("admin"),
-  deleteTimetableEntry
-);
+router.delete("/:id", protect, restrictTo("admin"), deleteTimetableEntry);
 
+router.post("/combo", protect, restrictTo("admin"), createComboTimetableEntry);
 
 export default router;

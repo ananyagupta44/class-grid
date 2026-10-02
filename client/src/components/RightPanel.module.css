@@ -1,109 +1,180 @@
+/*
+ * panelArea is the grid item. It stretches to the height of the left
+ * column (timetable + faculty legend) but its own content does NOT add
+ * to that height, because the real content is absolutely positioned
+ * inside panelInner. Result: the right panels end exactly where the
+ * faculty legend ends, and scroll internally.
+ */
 .panelArea {
+  position: relative;
+  min-width: 0;
+  margin-left: 0.75rem;
+  align-self: stretch;
+  min-height: 20rem; /* fallback if the left column is very short */
+}
+
+.panelInner {
+  position: absolute;
+  inset: 0;
+
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.85rem;
-  min-width: 0;
 }
 
 .sidePanel {
-  min-width: 0;
+  min-width: 0; 
+  width: 100%; 
+  box-sizing: border-box; 
   background: rgba(253, 249, 239, 0.62);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line); 
   border-radius: var(--radius-md);
   padding: 0.7rem;
-
-  display: flex;
+  display: flex; 
   flex-direction: column;
+  /* Existing height — keep it */
+  height: 100%;
   min-height: 0;
+
+  /* each panel scrolls independently */
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* thin, visible scrollbar so it is obvious the panel scrolls */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 43, 38, 0.35) transparent;
+
+}
+
+.sidePanel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidePanel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidePanel::-webkit-scrollbar-thumb {
+  background: rgba(28, 43, 38, 0.3);
+  border-radius: 999px;
+}
+
+.sidePanel::-webkit-scrollbar-thumb:hover {
+  background: rgba(28, 43, 38, 0.5);
 }
 
 .panelHeader {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+
   gap: 0.5rem;
   margin-bottom: 0.6rem;
+
   flex-shrink: 0;
 }
 
 .panelHeader span {
   display: block;
+
   margin-bottom: 0.1rem;
-  font-size: 0.58rem;
+
+  font-size: 0.72rem;
   font-weight: 700;
+
   color: var(--ink-muted);
+
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .panelHeader h2 {
   margin: 0;
+
   font-size: 0.82rem;
   color: var(--ink);
 }
 
 .panelHeader small {
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   color: var(--ink-muted);
+
+  white-space: nowrap;
 }
 
-/* Vertical scrolling only */
+/*
+==================================================
+CARDS
+
+NO INTERNAL VERTICAL SCROLLBAR.
+
+The whole dashboard/page should scroll instead.
+==================================================
+*/
+
 .cards {
+  width: 100%;
+  min-width: 0;
+
   display: flex;
   flex-direction: column;
+
   gap: 0.65rem;
 
-  overflow-y: auto;
-  overflow-x: hidden;
+  /*
+   * IMPORTANT:
+   * Do not use overflow-y:auto here.
+   * Do not use max-height here.
+   */
+  overflow: visible;
 
-  min-height: 0;
-  max-height: 32rem;
+  padding: 0.1rem 0.1rem 0;
 
-  padding: 0.1rem 0.25rem 0.45rem 0.1rem;
+  box-sizing: border-box;
 }
 
 .cards > * {
   width: 100%;
   min-width: 0;
+
   flex: 0 0 auto;
 }
 
-/* Vertical scrollbar */
-.cards::-webkit-scrollbar {
-  width: 6px;
-}
-
-.cards::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.cards::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 10px;
-}
-
-.cards::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-muted);
-}
+/*
+==================================================
+EMPTY STATE
+==================================================
+*/
 
 .empty {
   width: 100%;
   min-height: 6rem;
+
   margin: 0;
+
   display: grid;
   place-items: center;
+
   border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.7rem;
+
+  font-size: 0.8rem;
   color: var(--ink-muted);
+
+  box-sizing: border-box;
 }
 
-@media (max-width: 1050px) {
+@media print {
   .panelArea {
-    grid-template-columns: 1fr;
+    min-height: 0;
   }
 
-  .cards {
-    max-height: 28rem;
+  .panelInner {
+    position: static;
+  }
+
+  .sidePanel {
+    height: auto;
+    overflow: visible;
   }
 }

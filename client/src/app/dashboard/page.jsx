@@ -8,6 +8,7 @@ import EntitySelector from "../../components/EntitySelector";
 import TimetableGrid from "../../components/TimetableGrid";
 import RightPanel from "../../components/RightPanel";
 import FacultyLegend from "../../components/FacultyLegend";
+import PrintPicker from "../../components/PrintPicker";
 import EditClassModal from "../../components/EditClassModal";
 import { useTimetable } from "../../context/TimetableContext";
 
@@ -59,16 +60,16 @@ async function apiRequest(endpoint, options = {}) {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { addEntry, updateEntry } = useTimetable();
+  const { entries, setEntries, addEntry, updateEntry, addComboEntry } =
+    useTimetable();
 
   const urlCourseId = searchParams.get("courseId");
 
   const [courses, setCourses] = useState([]);
   const [course, setCourse] = useState(null);
-
+  const [venueSearch, setVenueSearch] = useState("");
   const [faculties, setFaculties] = useState([]);
   const [venues, setVenues] = useState([]);
-  const [entries, setEntries] = useState([]);
   const [legend, setLegend] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
 
@@ -80,15 +81,58 @@ export default function Dashboard() {
 
   const [venueTimetables, setVenueTimetables] = useState([]);
 
+  const [warning, setWarning] = useState("");
+
   const [viewType, setViewType] = useState("course");
 
-  const [selectedId, setSelectedId] = useState("");
+  // const [selectedId, setSelectedId] = useState("");
 
   const [modalState, setModalState] = useState(null);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+
+  // legend chip chosen via click (touch / click-to-place alternative to drag)
+  const [selectedBlock, setSelectedBlock] = useState(null);
+
+  const [facultySearch, setFacultySearch] = useState("");
+
+  // faculty / venue download: picker dialog + ids chosen for printing
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [printIds, setPrintIds] = useState(null);
+
+  // once the print-only pages are rendered, open the print dialog;
+  // clear them again when printing is done / cancelled
+  useEffect(() => {
+    if (!printIds) return;
+
+    const done = () => setPrintIds(null);
+
+    window.addEventListener("afterprint", done);
+    const timer = setTimeout(() => window.print(), 150);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [printIds]);
+
+  // Esc: close the clash popup first, otherwise cancel a pending placement
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+
+      if (warning) {
+        setWarning("");
+      } else if (selectedBlock) {
+        setSelectedBlock(null);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [warning, selectedBlock]);
 
   /*
    * LOAD COURSES
@@ -130,19 +174,11 @@ export default function Dashboard() {
 
         const response = await apiRequest(`/dashboard/${urlCourseId}`);
 
-        console.log("FULL DASHBOARD RESPONSE:", response);
-
-        console.log("COURSE SUBJECTS:", response.course?.subjects || []);
-
-        console.log("LEGEND:", response.legend || []);
-
         setCourse(response.course || null);
 
         setFaculties(response.faculties || []);
 
         setVenues(response.venues || []);
-
-        setEntries(response.entries || []);
 
         setLegend(response.legend || []);
 
@@ -159,9 +195,11 @@ export default function Dashboard() {
         setFacultyTimetables(response.facultyTimetables || []);
 
         setVenueTimetables(response.venueTimetables || []);
-      } catch (err) {
-        console.error("LOAD DASHBOARD:", err);
 
+        const timetableResponse = await apiRequest("/timetable");
+
+        setEntries(timetableResponse.entries || []);
+      } catch (err) {
         setError(err.message);
 
         setCourse(null);
@@ -200,34 +238,24 @@ export default function Dashboard() {
    */
 
   function handleTabChange(next) {
+    setSelectedBlock(null);
+    setPickerOpen(false);
     setViewType(next);
-
-    if (next === "faculty") {
-      setSelectedId(faculties[0]?._id || faculties[0]?.id || "");
-    }
-
-    if (next === "venue") {
-      setSelectedId(venues[0]?._id || venues[0]?.id || "");
-    }
-
-    if (next === "course") {
-      setSelectedId("");
-    }
   }
 
   /*
    * SELECTED FACULTY / VENUE
    */
 
-  useEffect(() => {
-    if (viewType === "faculty" && !selectedId && faculties.length) {
-      setSelectedId(faculties[0]._id || faculties[0].id);
-    }
+  // useEffect(() => {
+  //   if (viewType === "faculty" && !selectedId && faculties.length) {
+  //     setSelectedId(faculties[0]._id || faculties[0].id);
+  //   }
 
-    if (viewType === "venue" && !selectedId && venues.length) {
-      setSelectedId(venues[0]._id || venues[0].id);
-    }
-  }, [viewType, selectedId, faculties, venues]);
+  //   if (viewType === "venue" && !selectedId && venues.length) {
+  //     setSelectedId(venues[0]._id || venues[0].id);
+  //   }
+  // }, [viewType, selectedId, faculties, venues]);
 
   /*
    * MAIN GRID
@@ -235,19 +263,29 @@ export default function Dashboard() {
 
   const gridEntries = useMemo(() => {
     if (viewType === "course") {
-      return entries;
-    }
+      return entries.filter((entry) => {
+        const belongsToCurrentCourse =
+          getId(entry.course) === urlCourseId || entry.courseId === urlCourseId;
 
-    if (!selectedId) {
-      return [];
+        const belongsToComboWithCurrentCourse =
+          entry.comboGroupId &&
+          entries.some(
+            (other) =>
+              other.comboGroupId === entry.comboGroupId &&
+              (getId(other.course) === urlCourseId ||
+                other.courseId === urlCourseId),
+          );
+
+        return belongsToCurrentCourse || belongsToComboWithCurrentCourse;
+      });
     }
 
     if (viewType === "faculty") {
-      return entries.filter((entry) => getId(entry.faculty) === selectedId);
+      return [];
     }
 
-    return entries.filter((entry) => getId(entry.venue) === selectedId);
-  }, [entries, selectedId, viewType]);
+    return [];
+  }, [entries, urlCourseId, viewType]);
 
   /*
    * FACULTY CARDS
@@ -289,11 +327,120 @@ export default function Dashboard() {
     [venues, entries],
   );
 
+  const venueTimetableEntries = useMemo(() => {
+    return venues.map((venue) => {
+      const venueId = String(venue._id);
+
+      const venueEntries = entries.filter(
+        (entry) =>
+          String(entry.venueId) === venueId ||
+          String(entry.venue?._id) === venueId,
+      );
+
+      return {
+        venue,
+        entries: venueEntries,
+      };
+    });
+  }, [venues, entries]);
+
+  // ADD this useMemo right after your existing `venueTimetableEntries` useMemo.
+  // It filters the already-computed venueTimetableEntries by the search box,
+  // matching on room number, name, or type/category.
+
+  const filteredVenueTimetableEntries = useMemo(() => {
+    const query = venueSearch.trim().toLowerCase();
+
+    if (!query) return venueTimetableEntries;
+
+    return venueTimetableEntries.filter(({ venue }) => {
+      const haystack = [venue.roomNo, venue.name, venue.type, venue.category]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [venueTimetableEntries, venueSearch]);
+
+  const filteredFacultyCards = useMemo(() => {
+    const query = facultySearch.trim().toLowerCase();
+
+    if (!query) return facultyCards;
+
+    return facultyCards.filter((card) =>
+      [card.title, card.subtitle]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [facultyCards, facultySearch]);
+
+  /*
+   * DOWNLOAD (faculty / venue): picker items + the pages to print
+   */
+
+  const pickerItems = useMemo(() => {
+    if (viewType === "faculty") {
+      return facultyCards.map((card) => ({
+        id: String(card.id),
+        label: card.title,
+        sublabel: card.subtitle,
+      }));
+    }
+
+    if (viewType === "venue") {
+      return venueTimetableEntries.map(({ venue }) => ({
+        id: String(venue._id),
+        label: venue.roomNo || venue.name,
+        sublabel: venue.type || venue.category,
+      }));
+    }
+
+    return [];
+  }, [viewType, facultyCards, venueTimetableEntries]);
+
+  const printCards = useMemo(() => {
+    if (!printIds) return [];
+
+    const chosen = new Set(printIds);
+
+    if (viewType === "faculty") {
+      return facultyCards
+        .filter((card) => chosen.has(String(card.id)))
+        .map((card) => ({
+          id: String(card.id),
+          title: card.title,
+          subtitle: card.subtitle,
+          entries: card.entries,
+        }));
+    }
+
+    if (viewType === "venue") {
+      return venueTimetableEntries
+        .filter(({ venue }) => chosen.has(String(venue._id)))
+        .map(({ venue, entries: venueEntries }) => ({
+          id: String(venue._id),
+          title: venue.roomNo || venue.name,
+          subtitle: [
+            venue.type || venue.category,
+            venue.capacity ? `Capacity ${venue.capacity}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          entries: venueEntries,
+        }));
+    }
+
+    return [];
+  }, [printIds, viewType, facultyCards, venueTimetableEntries]);
+
   /*
    * OPEN ADD CLASS
    */
 
-  function openAddClass(day = "", periodId = "") {
+  function openAddClass(day = "", periodId = "", venueId = "") {
     if (!currentCourse) {
       setError("Please select a course first.");
       return;
@@ -306,7 +453,7 @@ export default function Dashboard() {
 
       subjectId: "",
       facultyId: "",
-      venueId: "",
+      venueId: venueId || "",
 
       day,
       periodId,
@@ -321,12 +468,83 @@ export default function Dashboard() {
 
   async function handleDropEntry(entryId, day, periodId) {
     try {
+      const entry = entries.find(
+        (item) => item.id === entryId || item._id === entryId,
+      );
+
+      if (!entry) {
+        setError("Class not found.");
+        return {
+          ok: false,
+          reason: "Class not found.",
+        };
+      }
+
+      // ---------------------------------------
+      // COMBO CLASS
+      // ---------------------------------------
+      if (entry.comboGroupId) {
+        const comboEntries = entries.filter(
+          (item) => item.comboGroupId === entry.comboGroupId,
+        );
+
+        if (comboEntries.length < 2) {
+          setError("Combo class is incomplete.");
+          return {
+            ok: false,
+            reason: "Combo class is incomplete.",
+          };
+        }
+
+        // Move both combo entries
+        for (const comboEntry of comboEntries) {
+          const response = await apiRequest(
+            `/timetable/${comboEntry.id || comboEntry._id}`,
+            {
+              method: "PUT",
+
+              body: JSON.stringify({
+                courseId: getId(comboEntry.course) || comboEntry.courseId,
+
+                subjectId: getId(comboEntry.subject) || comboEntry.subjectId,
+
+                facultyId: getId(comboEntry.faculty) || comboEntry.facultyId,
+
+                venueId: getId(comboEntry.venue) || comboEntry.venueId,
+
+                day,
+                periodId,
+
+                duration: comboEntry.duration || 1,
+
+                comboGroupId: comboEntry.comboGroupId,
+              }),
+            },
+          );
+        }
+
+        await reloadDashboard();
+
+        return {
+          ok: true,
+          combo: true,
+        };
+      }
+
+      // ---------------------------------------
+      // NORMAL CLASS
+      // ---------------------------------------
       const response = await apiRequest(`/timetable/${entryId}`, {
         method: "PUT",
 
         body: JSON.stringify({
+          courseId: getId(entry.course) || entry.courseId,
+          subjectId: getId(entry.subject) || entry.subjectId,
+          facultyId: getId(entry.faculty) || entry.facultyId,
+          venueId: getId(entry.venue) || entry.venueId,
           day,
           periodId,
+          duration: entry.duration || 1,
         }),
       });
 
@@ -338,6 +556,8 @@ export default function Dashboard() {
       };
     } catch (err) {
       console.error("MOVE ENTRY:", err);
+
+      setWarning(err.message || "Cannot move class.");
 
       return {
         ok: false,
@@ -396,12 +616,22 @@ export default function Dashboard() {
    */
 
   function handleCellClick(day, periodId) {
+    // a legend chip is selected → place it here (same as dropping it)
+    if (selectedBlock) {
+      const payload = selectedBlock;
+      setSelectedBlock(null);
+      handleLegendDrop(payload, day, periodId);
+      return;
+    }
+
     openAddClass(day, periodId);
   }
 
-  function handleVenueDrop(payload, day, periodId, venueId) {
-    console.log("VENUE DROP:", payload, day, periodId, venueId);
+  function handleVenueCellClick(day, periodId, venueId) {
+    openAddClass(day, periodId, venueId);
+  }
 
+  function handleVenueDrop(payload, day, periodId, venueId) {
     if (payload.kind === "legend") {
       setModalState({
         courseId: payload.courseId || currentCourse?._id || currentCourse?.id,
@@ -429,7 +659,7 @@ export default function Dashboard() {
    */
 
   function handleEditEntry(entry) {
-    setModalState({
+    const modalData = {
       ...entry,
 
       courseId: getId(entry.course),
@@ -439,7 +669,28 @@ export default function Dashboard() {
       facultyId: getId(entry.faculty),
 
       venueId: getId(entry.venue),
-    });
+    };
+
+    // ---------------------------------------
+    // COMBO CLASS
+    // ---------------------------------------
+    if (entry.comboGroupId) {
+      const comboEntries = entries.filter(
+        (item) =>
+          item.comboGroupId === entry.comboGroupId &&
+          (item.id !== entry.id || item._id !== entry._id),
+      );
+
+      const comboEntry = comboEntries[0];
+
+      if (comboEntry) {
+        modalData.comboCourseId = getId(comboEntry.course);
+
+        modalData.comboSubjectId = getId(comboEntry.subject);
+      }
+    }
+
+    setModalState(modalData);
   }
 
   /*
@@ -447,33 +698,84 @@ export default function Dashboard() {
    */
 
   async function handleSave(form) {
-    const payload = {
-      ...form,
+    console.log("========== HANDLE SAVE START ==========");
+    console.log("FORM:", form);
+    console.log("IS COMBO:", form?.isCombo);
 
-      courseId: form.courseId || currentCourse?._id || currentCourse?.id,
+    try {
+      // =========================
+      // COMBO CLASS
+      // =========================
+      if (form.isCombo) {
+        console.log("➡️ ENTERING COMBO BRANCH");
+        console.log("COMBO FORM:", form);
 
-      duration: form.duration || 1,
-    };
+        const result = await addComboEntry(form);
 
-    if (form.id || form._id) {
-      const id = form.id || form._id;
+        console.log("➡️ COMBO RESULT:", result);
 
-      const result = await updateEntry(id, payload);
+        if (result.ok) {
+          await reloadDashboard();
+          setModalState(null);
+        }
+
+        return result;
+      }
+
+      // =========================
+      // NORMAL CLASS
+      // =========================
+      console.log("➡️ ENTERING NORMAL BRANCH");
+
+      const payload = {
+        ...form,
+        courseId: form.courseId || currentCourse?._id || currentCourse?.id,
+        duration: form.duration || 1,
+      };
+
+      console.log("➡️ PAYLOAD CREATED:", payload);
+
+      // =========================
+      // EDIT EXISTING CLASS
+      // =========================
+      if (form.id || form._id) {
+        console.log("➡️ UPDATE BRANCH");
+
+        const result = await updateEntry(form.id || form._id, payload);
+
+        console.log("➡️ UPDATE RESULT:", result);
+
+        if (result.ok) {
+          await reloadDashboard();
+          setModalState(null);
+        }
+
+        return result;
+      }
+
+      // =========================
+      // CREATE NORMAL CLASS
+      // =========================
+      console.log("➡️ ABOUT TO CALL addEntry");
+
+      const result = await addEntry(payload);
+
+      console.log("➡️ ADD ENTRY RESULT:", result);
 
       if (result.ok) {
+        await reloadDashboard();
         setModalState(null);
       }
 
       return result;
+    } catch (error) {
+      console.error("🔥 HANDLE SAVE ERROR:", error);
+
+      return {
+        ok: false,
+        reason: error?.message || "Unable to schedule this class.",
+      };
     }
-
-    const result = await addEntry(payload);
-
-    if (result.ok) {
-      setModalState(null);
-    }
-
-    return result;
   }
 
   /*
@@ -482,23 +784,42 @@ export default function Dashboard() {
 
   async function handleDelete(id) {
     try {
-      await apiRequest(`/timetable/${id}`, {
-        method: "DELETE",
-      });
+      const entry = entries.find((item) => (item.id || item._id) === id);
+
+      // ---------------------------------------
+      // DELETE COMBO CLASS
+      // ---------------------------------------
+      if (entry?.comboGroupId) {
+        const comboEntries = entries.filter(
+          (item) => item.comboGroupId === entry.comboGroupId,
+        );
+
+        for (const comboEntry of comboEntries) {
+          const comboEntryId = comboEntry.id || comboEntry._id;
+
+          await apiRequest(`/timetable/${comboEntryId}`, {
+            method: "DELETE",
+          });
+        }
+      } else {
+        // ---------------------------------------
+        // DELETE NORMAL CLASS
+        // ---------------------------------------
+        await apiRequest(`/timetable/${id}`, {
+          method: "DELETE",
+        });
+      }
 
       await reloadDashboard();
-
       setModalState(null);
 
-      return {
-        ok: true,
-      };
-    } catch (err) {
-      console.error("DELETE CLASS:", err);
+      return { ok: true };
+    } catch (error) {
+      console.error("Delete failed:", error);
 
       return {
         ok: false,
-        reason: err.message,
+        reason: error.message || "Failed to delete class.",
       };
     }
   }
@@ -535,26 +856,23 @@ export default function Dashboard() {
   async function reloadDashboard() {
     if (!urlCourseId) return;
 
-    const response = await apiRequest(`/dashboard/${urlCourseId}`);
+    try {
+      const response = await apiRequest(`/dashboard/${urlCourseId}`);
 
-    setCourse(response.course || null);
+      setCourse(response.course || null);
+      setFaculties(response.faculties || []);
+      setVenues(response.venues || []);
+      setLegend(response.legend || []);
+      setFacultyTimetables(response.facultyTimetables || []);
+      setVenueTimetables(response.venueTimetables || []);
 
-    setFaculties(response.faculties || []);
+      // IMPORTANT: load all timetable entries
+      const timetableResponse = await apiRequest("/timetable");
 
-    setVenues(response.venues || []);
-
-    setEntries(response.entries || []);
-
-    setLegend(response.legend || []);
-
-    /*
-     * Do NOT update days/periods here.
-     * They remain the frontend constants.
-     */
-
-    setFacultyTimetables(response.facultyTimetables || []);
-
-    setVenueTimetables(response.venueTimetables || []);
+      setEntries(timetableResponse.entries || []);
+    } catch (err) {
+      console.error("RELOAD DASHBOARD:", err);
+    }
   }
 
   /*
@@ -562,7 +880,23 @@ export default function Dashboard() {
    */
 
   if (loading) {
-    return <div className={styles.loading}>Loading timetable...</div>;
+    return (
+      <div
+        className={styles.page}
+        aria-busy="true"
+        aria-label="Loading timetable"
+      >
+        <div className={styles.skeletonHeader}>
+          <div className={`${styles.skeleton} ${styles.skeletonKicker}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
+        </div>
+
+        <div className={styles.skeletonRow}>
+          <div className={`${styles.skeleton} ${styles.skeletonCard}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonCard}`} />
+        </div>
+      </div>
+    );
   }
 
   /*
@@ -580,13 +914,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  console.log("ADD CLASS DEBUG:", {
-    currentCourse,
-    modalState,
-    course,
-    subjects: course?.subjects,
-  });
 
   return (
     <div className={styles.page}>
@@ -607,138 +934,285 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className={styles.addClassButton}
-          onClick={() => openAddClass()}
-        >
-          + Add Class
-        </button>
-      </div>
+        <div className={styles.controls}>
+          <TabSwitcher active={viewType} onChange={handleTabChange} />
 
-      {error && <p className={styles.error}>{error}</p>}
+          {viewType === "course" && (
+            <label className={styles.coursePicker}>
+              <select
+                value={urlCourseId || ""}
+                onChange={(e) => handleCourseChange(e.target.value)}
+              >
+                {courses.map((item) => (
+                  <option key={item._id} value={item._id}>
+                    {item.courseId} — Semester {item.semester}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-      {/* CONTROLS */}
-
-      <div className={styles.controls}>
-        <TabSwitcher active={viewType} onChange={handleTabChange} />
-
-        {viewType === "course" && (
-          <label className={styles.coursePicker}>
-            <span>Course</span>
-
-            <select
-              value={urlCourseId || ""}
-              onChange={(e) => handleCourseChange(e.target.value)}
-            >
-              {courses.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.courseId} — Semester {item.semester}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {viewType !== "course" && (
-          <EntitySelector
-            label={viewType === "faculty" ? "Faculty" : "Venue"}
-            options={viewType === "faculty" ? faculties : venues}
-            value={selectedId}
-            onChange={setSelectedId}
-            getOptionLabel={(item) =>
-              item.name || item.roomNo || item.facultyId
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() =>
+              viewType === "course" ? window.print() : setPickerOpen(true)
             }
-          />
-        )}
+            title={
+              viewType === "course"
+                ? "Print or save the course timetable as PDF"
+                : "Choose which timetables to download"
+            }
+          >
+            {viewType === "course" ? "Print / PDF" : "Download PDF"}
+          </button>
+        </div>
       </div>
 
-      {/* COURSE INFO */}
-
-      {currentCourse && (
-        <div className={styles.courseBanner}>
-          <div>
-            <span>Selected course</span>
-
-            <strong>{currentCourse.courseId}</strong>
-          </div>
-
-          <div className={styles.bannerStats}>
-            <span>Semester {currentCourse.semester}</span>
-
-            <span>{currentCourse.noOfStudents} students</span>
-
-            <span>{currentCourse.subjects?.length || 0} subjects</span>
-          </div>
+      {error && (
+        <div className={styles.error} role="alert">
+          <span>{error}</span>
+          <button
+            type="button"
+            className={styles.errorClose}
+            onClick={() => setError("")}
+            aria-label="Dismiss error"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {/* MAIN */}
 
-      <div className={styles.mainRow}>
-        <div className={styles.gridCol}>
-          <div className={styles.timetableHeader}>
-            <div>
-              <p className={styles.kicker}>Weekly timetable</p>
+      {viewType === "faculty" ? (
+        /*
+         * FACULTY VIEW — FULL WIDTH, ALL FACULTY TIMETABLES IN A GRID
+         */
+        <div className={styles.venueFullRow}>
+          <div className={styles.venueView}>
+            <div className={styles.viewHeader}>
+              <div className={styles.venueViewHeaderRow}>
+                <div>
+                  <h2>Faculty Timetables</h2>
+                  <p>All faculty schedules</p>
+                </div>
 
-              <h2>
-                {viewType === "course"
-                  ? currentCourse?.courseId
-                  : viewType === "faculty"
-                    ? "Faculty timetable"
-                    : "Venue timetable"}
-              </h2>
+                <div className={styles.venueSearchWrap}>
+                  <input
+                    type="text"
+                    className={styles.venueSearchInput}
+                    placeholder="Search faculty (name or designation)..."
+                    value={facultySearch}
+                    onChange={(e) => setFacultySearch(e.target.value)}
+                  />
+
+                  {facultySearch && (
+                    <button
+                      type="button"
+                      className={styles.venueSearchClear}
+                      onClick={() => setFacultySearch("")}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <button
-              type="button"
-              className={styles.addClassButton}
-              onClick={() => openAddClass()}
-            >
-              + Add Class
-            </button>
+            <div className={styles.facultyTimetableGrid}>
+              {filteredFacultyCards.length === 0 && (
+                <p className={styles.venueNoResults}>
+                  {facultySearch
+                    ? `No faculty match "${facultySearch}".`
+                    : "Faculty schedules will appear here."}
+                </p>
+              )}
+
+              {filteredFacultyCards.map((card) => (
+                <div key={card.id} className={styles.venueTimetableCard}>
+                  <div className={styles.venueHeader}>
+                    <div>
+                      <h3>{card.title}</h3>
+                      <span>{card.subtitle || "Faculty"}</span>
+                    </div>
+                  </div>
+
+                  <TimetableGrid
+                    entries={card.entries}
+                    days={DAYS}
+                    periods={PERIODS}
+                    variant="faculty"
+                    courses={courses}
+                    faculties={faculties}
+                    venues={venues}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : viewType === "venue" ? (
+        /*
+         * VENUE VIEW — FULL WIDTH, NO RIGHT PANEL, NO 2-COLUMN GRID
+         */
+        <div className={styles.venueFullRow}>
+          <div className={styles.venueView}>
+            <div className={styles.viewHeader}>
+              <div className={styles.venueViewHeaderRow}>
+                <div>
+                  <h2>Venue Timetables</h2>
+                  <p>All venue schedules</p>
+                </div>
+
+                <div className={styles.venueSearchWrap}>
+                  <input
+                    type="text"
+                    className={styles.venueSearchInput}
+                    placeholder="Search venue (e.g. LAB-3, seminar hall)..."
+                    value={venueSearch}
+                    onChange={(e) => setVenueSearch(e.target.value)}
+                  />
+
+                  {venueSearch && (
+                    <button
+                      type="button"
+                      className={styles.venueSearchClear}
+                      onClick={() => setVenueSearch("")}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.venueTimetableList}>
+              {filteredVenueTimetableEntries.length === 0 && (
+                <p className={styles.venueNoResults}>
+                  No venues match &quot;{venueSearch}&quot;.
+                </p>
+              )}
+
+              {filteredVenueTimetableEntries.map(
+                ({ venue, entries: venueEntries }) => (
+                  <div key={venue._id} className={styles.venueTimetableCard}>
+                    <div className={styles.venueHeader}>
+                      <div>
+                        <h3>{venue.roomNo}</h3>
+                        <span>{venue.type || venue.category || "Venue"}</span>
+                      </div>
+
+                      {venue.capacity && (
+                        <span>Capacity: {venue.capacity}</span>
+                      )}
+                    </div>
+
+                    <TimetableGrid
+                      entries={venueEntries}
+                      days={DAYS}
+                      periods={PERIODS}
+                      variant="venue"
+                      courses={courses}
+                      faculties={faculties}
+                      venues={venues}
+                      // onCellClick={(day, periodId) =>
+                      //   handleVenueCellClick(day, periodId, venue._id)
+                      // }
+                    />
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /*
+         * COURSE / FACULTY VIEW — UNCHANGED 2-COLUMN LAYOUT
+         */
+        <div className={styles.mainRow}>
+          <div className={styles.gridCol}>
+            {viewType === "course" && selectedBlock && (
+              <div className={styles.placingHint} role="status">
+                <span>
+                  Placing <strong>{selectedBlock.label}</strong> — click a slot
+                  in the timetable
+                </span>
+
+                <button type="button" onClick={() => setSelectedBlock(null)}>
+                  Cancel (Esc)
+                </button>
+              </div>
+            )}
+
+            {viewType === "course" && (
+              <div data-print-area className={styles.printArea}>
+                <div className={styles.printHeader}>
+                  <div>
+                    <h1>Class Timetable</h1>
+                    <p>
+                      {currentCourse?.courseId || "—"} · Semester{" "}
+                      {currentCourse?.semester || "—"}
+                    </p>
+                  </div>
+
+                  <p>
+                    {currentCourse?.session?.sessionId
+                      ? `Session ${currentCourse.session.sessionId}`
+                      : ""}
+                  </p>
+                </div>
+
+                <TimetableGrid
+                  entries={gridEntries}
+                  days={DAYS}
+                  periods={PERIODS}
+                  variant="course"
+                  courses={courses}
+                  faculties={faculties}
+                  venues={venues}
+                  onDropEntry={handleDropEntry}
+                  onLegendDrop={handleLegendDrop}
+                  onCellClick={handleCellClick}
+                  placing={Boolean(selectedBlock)}
+                  onEditEntry={handleEditEntry}
+                />
+              </div>
+            )}
+
+            {viewType === "course" && (
+              <FacultyLegend
+                legend={legend}
+                faculties={faculties}
+                availableSubjects={availableSubjects}
+                courseId={currentCourse?._id || currentCourse?.id}
+                onAssignFaculty={handleAssignFaculty}
+                onAddSubject={handleAddSubject}
+                onAddClass={() => openAddClass()}
+                onDrop={handleLegendDrop}
+                selectedBlock={selectedBlock}
+                onSelectBlock={setSelectedBlock}
+              />
+            )}
           </div>
 
-          <TimetableGrid
-            days={days}
-            periods={periods}
-            entries={gridEntries}
-            courses={courses}
-            faculties={faculties}
-            venues={venues}
-            viewType={viewType}
-            onDropEntry={handleDropEntry}
-            onLegendDrop={handleLegendDrop}
-            onCellClick={handleCellClick}
-            onEditEntry={handleEditEntry}
-          />
-
           {viewType === "course" && (
-            <FacultyLegend
-              legend={legend}
+            <RightPanel
+              facultyCards={facultyCards}
+              venueCards={venueCards}
+              days={days}
+              periods={periods}
+              courses={courses}
               faculties={faculties}
-              availableSubjects={availableSubjects}
-              courseId={currentCourse?._id || currentCourse?.id}
-              onAssignFaculty={handleAssignFaculty}
-              onAddSubject={handleAddSubject}
-              onDrop={handleLegendDrop}
+              venues={venues}
+              onDropBlock={handleVenueDrop}
+              onVenueCellClick={handleVenueCellClick}
             />
           )}
         </div>
-
-        {viewType === "course" && (
-          <RightPanel
-            facultyCards={facultyCards}
-            venueCards={venueCards}
-            days={days}
-            periods={periods}
-            courses={courses}
-            faculties={faculties}
-            venues={venues}
-            onDropBlock={handleVenueDrop}
-          />
-        )}
-      </div>
+      )}
 
       {/* MODAL */}
 
@@ -746,6 +1220,7 @@ export default function Dashboard() {
         open={Boolean(modalState)}
         initial={modalState}
         course={course}
+        courses={courses}
         faculties={faculties}
         venues={venues}
         days={days}
@@ -754,6 +1229,101 @@ export default function Dashboard() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+      {warning && (
+        <div className={styles.warningOverlay} onClick={() => setWarning("")}>
+          <div
+            className={styles.warningPopup}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="warning-title"
+            aria-describedby="warning-text"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.warningIcon} aria-hidden="true">
+              !
+            </div>
+
+            <h3 id="warning-title">Schedule Clash</h3>
+
+            <p id="warning-text">{warning}</p>
+
+            <button type="button" autoFocus onClick={() => setWarning("")}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FACULTY / VENUE DOWNLOAD: choose whose timetables to include */}
+      {pickerOpen && (viewType === "faculty" || viewType === "venue") && (
+        <PrintPicker
+          title={
+            viewType === "faculty"
+              ? "Download faculty timetables"
+              : "Download venue timetables"
+          }
+          noun={viewType === "faculty" ? "faculty" : "venues"}
+          items={pickerItems}
+          onCancel={() => setPickerOpen(false)}
+          onConfirm={(ids) => {
+            setPickerOpen(false);
+            setPrintIds(ids);
+          }}
+        />
+      )}
+
+      {/* print-only pages: one chosen faculty / venue per page */}
+      {printIds && printCards.length > 0 && (
+        <div className={styles.printOnly}>
+          {printCards.map((card) => (
+            <section key={card.id} data-print-area className={styles.printPage}>
+              <div className={styles.printHeader}>
+                <div>
+                  <h1>
+                    {viewType === "faculty"
+                      ? "Faculty Timetable"
+                      : "Venue Timetable"}
+                  </h1>
+                  <p>
+                    {card.title}
+                    {card.subtitle ? ` · ${card.subtitle}` : ""}
+                  </p>
+                </div>
+
+                <p>
+                  {currentCourse?.session?.sessionId
+                    ? `Session ${currentCourse.session.sessionId}`
+                    : ""}
+                </p>
+              </div>
+
+              <TimetableGrid
+                entries={card.entries}
+                days={DAYS}
+                periods={PERIODS}
+                variant={viewType}
+                courses={courses}
+                faculties={faculties}
+                venues={venues}
+              />
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* PRINT: only the [data-print-area] block (course timetable) prints */}
+      <style media="print">{`
+        @page { size: A4 landscape; margin: 10mm; }
+        html, body { background: #fff !important; }
+        body *:not(:has([data-print-area])):not([data-print-area]):not([data-print-area] *) {
+          display: none !important;
+        }
+        main { padding: 0 !important; }
+        [data-print-area], [data-print-area] * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      `}</style>
     </div>
   );
 }

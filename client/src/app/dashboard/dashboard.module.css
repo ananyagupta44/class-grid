@@ -4,15 +4,23 @@
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .kicker {
   margin: 0 0 0.2rem;
-  font-size: 0.65rem;
+  font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -27,17 +35,8 @@
 
 .subtitle {
   margin: 0.3rem 0 0;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--ink-muted);
-}
-
-.controls {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.85rem;
 }
 
 .coursePicker {
@@ -48,7 +47,7 @@
 }
 
 .coursePicker span {
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -62,7 +61,7 @@
   border-radius: var(--radius-sm);
   background: var(--parchment-card);
   color: var(--ink);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
 }
 
 .primaryButton,
@@ -70,7 +69,7 @@
 .addClassButton {
   border-radius: var(--radius-sm);
   padding: 0.58rem 0.75rem;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -116,12 +115,12 @@
 }
 
 .courseBanner span {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   color: var(--ink-muted);
 }
 
 .courseBanner strong {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--slate);
 }
 
@@ -136,14 +135,26 @@
   border-left: 1px solid var(--line);
 }
 
+/* COURSE / FACULTY VIEW — unchanged two-column layout */
+
 .mainRow {
+  width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(31rem, 1.08fr);
-  gap: 1rem;
-  align-items: start;
+
+  align-items: stretch;
+  min-height: 0;
 }
 
 .gridCol {
+  min-width: 0;
+}
+
+/* VENUE VIEW — new full-width row, sits outside the two-column grid entirely */
+
+.venueFullRow {
+  width: 100%;
   min-width: 0;
 }
 
@@ -157,7 +168,7 @@
 
 .sectionHeader p {
   margin: 0;
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -186,14 +197,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
 }
 
 .subjectHeader button {
   border: none;
   background: transparent;
   color: var(--marigold-dark);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -217,7 +228,7 @@
   border-radius: var(--radius-sm);
   background: var(--slate);
   color: var(--parchment);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   box-shadow: var(--shadow-panel);
 }
 
@@ -247,59 +258,372 @@
 }
 
 .error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin: 0 0 1rem;
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--parchment-card);
   color: #b3392a;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
 }
 
-@media (max-width: 1150px) {
-  .header {
-    flex-direction: column;
-  }
-
-  .controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .mainRow {
-    grid-template-columns: 1fr;
-  }
+.errorClose {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
 }
 
-@media (max-width: 650px) {
-  .controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .coursePicker,
-  .coursePicker select {
-    width: 100%;
-  }
-
-  .courseBanner {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .bannerStats {
-    gap: 0.5rem;
-  }
-
-  .bannerStats span:first-child {
-    padding-left: 0;
-    border-left: none;
-  }
+.errorClose:hover {
+  background: rgba(179, 57, 42, 0.12);
 }
 
-.modalExplanation {
-  margin: 0.9rem 0 0;
-  font-size: 0.74rem;
-  line-height: 1.5;
+.venueView {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.viewHeader {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.venueViewHeaderRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.venueSearchWrap {
+  position: relative;
+  min-width: 16rem;
+}
+
+.venueSearchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 2rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--parchment-card);
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.venueSearchInput:focus {
+  outline: none;
+  border-color: var(--marigold);
+}
+
+.venueSearchClear {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
   color: var(--ink-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.venueSearchClear:hover {
+  color: var(--marigold-dark);
+}
+
+.venueNoResults {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+
+/*
+ * FACULTY VIEW — responsive grid of faculty timetable cards.
+ * Each card is at least 42rem wide (so the timetable stays readable)
+ * and the grid fits as many columns as the page allows: ~2 on a
+ * typical desktop, 1 on narrow screens, 3 on very wide ones.
+ */
+
+.facultyTimetableGrid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 42rem), 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.venueTimetableList {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 42rem), 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Full width now — removed the 1400px cap so each venue card spans the whole page */
+
+.venueTimetableCard {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--parchment-card);
+  box-shadow: var(--shadow-card);
+}
+
+.venueHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.venueHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.venueHeader span {
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+
+.warningOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 43, 38, 0.35);
+}
+
+.warningPopup {
+  width: min(420px, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--parchment-card);
+  box-shadow: 0 12px 40px rgba(28, 43, 38, 0.2);
+  text-align: center;
+}
+
+.warningIcon {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.warningPopup h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.warningPopup p {
+  margin: 0 0 1.25rem;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.warningPopup button {
+  padding: 0.55rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.warningPopup button:focus-visible {
+  outline: 2px solid var(--slate-dark);
+  outline-offset: 2px;
+}
+
+.warningPopup button:hover {
+  opacity: 0.9;
+}
+
+/* =========================
+   CLICK-TO-PLACE HINT
+========================= */
+
+.placingHint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--marigold);
+  border-radius: var(--radius-sm);
+  background: #fdf3e2;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.placingHint button {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--parchment-card);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.placingHint button:hover {
+  border-color: var(--marigold);
+  color: var(--marigold-dark);
+}
+
+/* =========================
+   LOADING SKELETON
+========================= */
+
+.skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    rgba(28, 43, 38, 0.06) 25%,
+    rgba(28, 43, 38, 0.12) 50%,
+    rgba(28, 43, 38, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeletonHeader {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.skeletonKicker {
+  width: 7rem;
+  height: 0.8rem;
+}
+
+.skeletonTitle {
+  width: 14rem;
+  height: 1.8rem;
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(31rem, 1.08fr);
+  gap: 1rem;
+}
+
+.skeletonCard {
+  height: 26rem;
+}
+
+/* =========================
+   PRINT — only the course timetable
+========================= */
+
+.printHeader {
+  display: none;
+}
+
+/* faculty / venue pages are rendered only while printing */
+.printOnly {
+  display: none;
+}
+
+@media print {
+  /* the two-column layout collapses: only the timetable column prints */
+  .mainRow {
+    display: block !important;
+  }
+
+  .gridCol,
+  .printArea,
+  .printPage {
+    width: 100%;
+  }
+
+  .printOnly {
+    display: block;
+  }
+
+  /* each chosen faculty / venue starts on a new page */
+  .printPage ~ .printPage {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .printHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 5mm;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #222;
+    color: #111;
+  }
+
+  .printHeader h1 {
+    margin: 0;
+    font-size: 20pt;
+  }
+
+  .printHeader p {
+    margin: 0.15rem 0 0;
+    font-size: 11pt;
+  }
+
+  .controls,
+  .toast,
+  .placingHint,
+  .error,
+  .warningOverlay {
+    display: none !important;
+  }
 }

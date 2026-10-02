@@ -11,16 +11,29 @@ export default function FacultyLegend({
   onDrop,
   availableSubjects = [],
   onAddSubject,
+  onAddClass,
+  selectedBlock = null,
+  onSelectBlock,
 }) {
   const [showSubjects, setShowSubjects] = useState(false);
 
-  if (!legend.length) {
-    return (
-      <section className={styles.panel}>
-        <p className={styles.label}>Faculty Legend</p>
+  function buildPayload(item, block) {
+    return {
+      kind: "legend",
+      courseId,
+      subjectId: item.subject?._id || item.subject?.id,
+      facultyId: item.faculty?._id || item.faculty?.id || "",
+      blockType: block.type,
+      blockNumber: block.number,
+    };
+  }
 
-        <p className={styles.done}>No subjects are assigned to this course.</p>
-      </section>
+  function isSelected(payload) {
+    return (
+      !!selectedBlock &&
+      selectedBlock.subjectId === payload.subjectId &&
+      selectedBlock.blockType === payload.blockType &&
+      selectedBlock.blockNumber === payload.blockNumber
     );
   }
 
@@ -29,14 +42,7 @@ export default function FacultyLegend({
 
     event.dataTransfer.setData(
       "application/json",
-      JSON.stringify({
-        kind: "legend",
-        courseId,
-        subjectId: item.subject?.id,
-        facultyId: item.faculty?.id || "",
-        blockType: block.type,
-        blockNumber: block.number,
-      }),
+      JSON.stringify(buildPayload(item, block)),
     );
   }
 
@@ -71,13 +77,25 @@ export default function FacultyLegend({
           <h2>Classes to schedule</h2>
         </div>
 
-        <button
-          type="button"
-          className={styles.addSubject}
-          onClick={() => setShowSubjects((prev) => !prev)}
-        >
-          + Add Subject
-        </button>
+        <div className={styles.headerActions}>
+          {legend.length > 0 && (
+            <button
+              type="button"
+              className={styles.addClass}
+              onClick={() => onAddClass?.()}
+            >
+              + Add Class
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={styles.addSubject}
+            onClick={() => setShowSubjects((prev) => !prev)}
+          >
+            + Add Subject
+          </button>
+        </div>
       </div>
       {showSubjects && (
         <div className={styles.subjectPicker}>
@@ -147,18 +165,33 @@ export default function FacultyLegend({
 
               <div className={styles.blockRow}>
                 {remaining.length ? (
-                  remaining.map((block) => (
-                    <button
-                      key={`${subject.id}-${block.type}-${block.number}`}
-                      type="button"
-                      draggable
-                      className={styles.chip}
-                      onDragStart={(event) => startDrag(event, item, block)}
-                      title={`Drag ${block.label} to the timetable`}
-                    >
-                      {block.label}
-                    </button>
-                  ))
+                  remaining.map((block) => {
+                    const payload = buildPayload(item, block);
+                    const selected = isSelected(payload);
+
+                    return (
+                      <button
+                        key={`${subject.id}-${block.type}-${block.number}`}
+                        type="button"
+                        draggable
+                        className={`${styles.chip} ${
+                          selected ? styles.chipSelected : ""
+                        }`}
+                        aria-pressed={selected}
+                        onDragStart={(event) => startDrag(event, item, block)}
+                        onClick={() =>
+                          onSelectBlock?.(
+                            selected
+                              ? null
+                              : { ...payload, label: block.label },
+                          )
+                        }
+                        title={`Drag ${block.label} to the timetable, or click it and then click a slot`}
+                      >
+                        {block.label}
+                      </button>
+                    );
+                  })
                 ) : (
                   <span className={styles.done}>All classes scheduled</span>
                 )}

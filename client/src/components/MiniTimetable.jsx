@@ -10,19 +10,23 @@ export default function MiniTimetable({
   days = [],
   periods = [],
   entries = [],
+  courses = [],
   accent,
   acceptsDrop = false,
   onDropBlock,
   entityId,
+  onCellClick,
 }) {
   const cells = useMemo(
     () =>
       days.flatMap((day) =>
-        periods.map((period) => ({
+        periods.map((period, periodIndex) => ({
           day,
           period,
+          periodIndex,
           entry: entries.find(
-            (item) => item.day === day && item.periodId === period.id,
+            (item) =>
+              item.day === day && String(item.periodId) === String(period.id),
           ),
         })),
       ),
@@ -40,6 +44,36 @@ export default function MiniTimetable({
     return `${h}:${minute}`;
   }
 
+  function getCourse(entry) {
+    if (!entry) return null;
+
+    return (
+      courses.find((course) => String(course._id) === String(entry.courseId)) ||
+      entry.course
+    );
+  }
+
+  function isContinuation(day, periodIndex) {
+    if (periodIndex === 0) return false;
+
+    for (let i = 0; i < periodIndex; i++) {
+      const previousEntry = entries.find(
+        (item) =>
+          item.day === day && String(item.periodId) === String(periods[i].id),
+      );
+
+      if (!previousEntry) continue;
+
+      const duration = Number(previousEntry.duration) || 1;
+
+      if (i + duration > periodIndex) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function handleDrop(event, day, periodId) {
     event.preventDefault();
 
@@ -52,11 +86,8 @@ export default function MiniTimetable({
 
       const payload = JSON.parse(raw);
 
-      console.log("MINI TIMETABLE DROP:", payload);
-
       if (payload.kind === "legend") {
         onDropBlock?.(payload, day, periodId, entityId);
-
         return;
       }
 
@@ -75,10 +106,6 @@ export default function MiniTimetable({
     >
       <div className={styles.header}>
         <div>
-          <p className={styles.kicker}>
-            {accent === "venue" ? "Venue TT" : "Faculty TT"}
-          </p>
-
           <h3>{title}</h3>
 
           {subtitle ? <p>{subtitle}</p> : null}
@@ -91,7 +118,7 @@ export default function MiniTimetable({
         <div
           className={styles.grid}
           style={{
-            gridTemplateColumns: `34px repeat(${periods.length}, 54px)`,
+            gridTemplateColumns: `34px repeat(${periods.length}, minmax(0, 1fr))`,
           }}
         >
           {/* Empty corner */}
@@ -112,24 +139,53 @@ export default function MiniTimetable({
             );
           })}
 
-          {/* Days and cells */}
+          {/* Days */}
           {days.map((day) => (
             <div key={day} className={styles.row}>
               <div className={styles.day}>{day[0]}</div>
 
-              {cells
-                .filter((cell) => cell.day === day)
-                .map(({ period, entry }) => (
+              {periods.map((period, periodIndex) => {
+                const entry = entries.find(
+                  (item) =>
+                    item.day === day &&
+                    String(item.periodId) === String(period.id),
+                );
+
+                /*
+                 * Don't render another cell when this period
+                 * is already covered by a previous multi-period class.
+                 */
+                if (isContinuation(day, periodIndex)) {
+                  return null;
+                }
+
+                const duration = entry
+                  ? Math.min(
+                      Number(entry.duration) || 1,
+                      periods.length - periodIndex,
+                    )
+                  : 1;
+
+                return (
                   <div
                     key={`${day}-${period.id}`}
                     className={`${styles.cell} ${
                       acceptsDrop ? styles.dropCell : ""
                     }`}
+                    style={
+                      entry
+                        ? {
+                            gridColumn: `${periodIndex + 2} / span ${duration}`,
+                          }
+                        : {
+                            gridColumn: periodIndex + 2,
+                          }
+                    }
+                    onClick={() => onCellClick?.(day, period.id)}
                     onDragOver={
                       acceptsDrop
                         ? (event) => {
                             event.preventDefault();
-
                             event.dataTransfer.dropEffect = "copy";
                           }
                         : undefined
@@ -146,12 +202,16 @@ export default function MiniTimetable({
                         subject={entry.subject}
                         faculty={entry.faculty}
                         venue={entry.venue}
+                        course={getCourse(entry)}
+                        variant={accent}
+                        compact
                       />
                     ) : (
                       acceptsDrop && <span className={styles.plus}>+</span>
                     )}
                   </div>
-                ))}
+                );
+              })}
             </div>
           ))}
         </div>

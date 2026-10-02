@@ -16,42 +16,47 @@ const DAYS = [
 const PERIODS = [
   {
     id: "p1",
-    label: "09:00 - 10:00",
+    label: "09:00 - 09:50",
     isBreak: false,
   },
   {
     id: "p2",
-    label: "10:00 - 11:00",
+    label: "10:00 - 10:50",
     isBreak: false,
   },
   {
     id: "p3",
-    label: "11:00 - 12:00",
+    label: "11:00 - 11:50",
     isBreak: false,
   },
   {
-    id: "break1",
-    label: "12:00 - 12:30",
-    isBreak: true,
-  },
-  {
     id: "p4",
-    label: "12:30 - 01:30",
+    label: "12:00 - 12:50",
     isBreak: false,
   },
   {
     id: "p5",
-    label: "01:30 - 02:30",
+    label: "01:00 - 01:50",
     isBreak: false,
   },
   {
     id: "p6",
-    label: "02:30 - 03:30",
+    label: "02:00 - 02:50",
     isBreak: false,
   },
   {
     id: "p7",
-    label: "03:30 - 04:30",
+    label: "03:00 - 03:50",
+    isBreak: false,
+  },
+  {
+    id: "p8",
+    label: "04:00 - 04:50",
+    isBreak: false,
+  },
+  {
+    id: "p9",
+    label: "05:00 - 05:50",
     isBreak: false,
   },
 ];

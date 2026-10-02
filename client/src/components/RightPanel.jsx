@@ -12,17 +12,20 @@ export default function RightPanel({
   faculties = [],
   venues = [],
   onDropBlock = null,
+  onVenueCellClick = null,
 }) {
   return (
     <aside className={styles.panelArea}>
+      <div className={styles.panelInner}>
+      {/* ================= FACULTY ================= */}
       <section className={styles.sidePanel}>
         <div className={styles.panelHeader}>
           <div>
-            <span>Faculty Timetables</span>
+            {/* <span>Faculty Timetables</span> */}
             <h2>Faculty TT</h2>
           </div>
 
-          <small>Hover to expand</small>
+          <small>All faculty schedules</small>
         </div>
 
         <div className={styles.cards}>
@@ -47,10 +50,11 @@ export default function RightPanel({
         </div>
       </section>
 
+      {/* ================= VENUE ================= */}
       <section className={styles.sidePanel}>
         <div className={styles.panelHeader}>
           <div>
-            <span>Venue Timetables</span>
+            {/* <span>Venue Timetables</span> */}
             <h2>Venue TT</h2>
           </div>
 
@@ -74,6 +78,9 @@ export default function RightPanel({
                 acceptsDrop
                 entityId={card.id}
                 onDropBlock={onDropBlock}
+                onCellClick={(day, periodId) =>
+                  onVenueCellClick?.(day, periodId, card.id)
+                }
               />
             ))
           ) : (
@@ -83,6 +90,7 @@ export default function RightPanel({
           )}
         </div>
       </section>
+      </div>
     </aside>
   );
 }

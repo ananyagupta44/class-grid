@@ -1,5 +1,8 @@
 .table {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   background: var(--parchment-card);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -7,29 +10,52 @@
   overflow-x: auto;
 }
 
-.headerRow {
+/*
+ * Both .headerRow and .dayRow are now flat, single-level grids.
+ * The gridTemplateColumns value is passed inline from JS (rowTemplate)
+ * and is IDENTICAL for the header and every day row, so columns can
+ * never drift apart regardless of container width.
+ */
+
+.headerRow,
+.dayRow {
   display: grid;
-  min-width: 796px;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  /* min-width is set inline from JS (same value for every row) so the
+     columns can never drift and the table scrolls sideways instead of
+     squashing the timings */
 }
 
 .corner {
-  min-height: 3rem;
+  grid-row: 1;
 
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: var(--parchment-card);
+
+  min-height: 3rem;
+  min-width: 5rem;
   display: flex;
   align-items: center;
   justify-content: center;
 
   padding: 0.4rem;
 
-  font-size: 0.52rem;
+  font-size: 0.78rem;
   font-weight: 700;
 
   color: var(--ink-muted);
 
   border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
 
 .periodHeader {
+  grid-row: 1;
+
   min-height: 3rem;
 
   display: flex;
@@ -41,32 +67,31 @@
   text-align: center;
 
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.52rem;
-  line-height: 1.2;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  font-weight: 300;
 
-  color: var(--ink-muted);
+  color: var(--ink);
 
   border-left: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
-.dayRow {
-  display: grid;
-
-  grid-template-columns: 58px minmax(0, 1fr);
-
-  min-width: 796px;
-}
-
 .dayCell {
-  min-height: 4rem;
+  grid-row: 1;
+
+  position: sticky;
+  left: 0;
+  z-index: 6;
+
+  min-height: 4.5rem;
 
   display: flex;
   align-items: center;
-
+  min-width: 5rem;
   padding: 0.45rem;
 
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
 
@@ -75,30 +100,19 @@
   background: var(--parchment);
 
   border-top: 1px solid var(--line);
-}
-
-.slots {
-  display: grid;
-
-  position: relative;
-
-  min-width: 0;
-  min-height: 4rem;
-
-  grid-auto-flow: row;
-
-  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
 
 .slotCell {
   grid-row: 1;
 
   min-width: 0;
-  min-height: 4rem;
+  min-height: 4.5rem;
 
   padding: 0.2rem;
 
   border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
 
   cursor: pointer;
 }
@@ -124,7 +138,7 @@
   opacity: 0.5;
 }
 
-/* THIS controls the actual class width */
+/* THIS controls the actual class width — now on the SAME grid as everything else */
 
 .entryPosition {
   grid-row: 1;
@@ -135,43 +149,126 @@
   height: calc(100% - 0.4rem);
 
   margin-top: 0.2rem;
+  align-self: start;
 
   z-index: 5;
 
   overflow: hidden;
 }
 
+.slotCell {
+  position: relative;
+  z-index: 1;
+}
 
-@media (max-width: 900px) {
+.entryPosition {
+  position: relative;
+  z-index: 2;
+}
+
+/* =========================
+   TODAY'S ROW
+========================= */
+
+.todayRow .dayCell {
+  background: #fdf3e2;
+  box-shadow: inset 3px 0 0 var(--marigold);
+  color: var(--marigold-dark);
+}
+
+.todayRow .slotCell {
+  background: rgba(232, 163, 61, 0.06);
+}
+
+/* =========================
+   DRAG-OVER + CLICK-TO-PLACE FEEDBACK
+========================= */
+
+.slotCellOver,
+.slotCellOver:hover {
+  background: rgba(232, 163, 61, 0.22);
+  outline: 2px dashed var(--marigold);
+  outline-offset: -2px;
+}
+
+.slotCellOver .addHint {
+  opacity: 0.9;
+  color: var(--marigold-dark);
+  font-weight: 700;
+}
+
+/* a legend chip has been selected: every slot is a target */
+.placing .slotCell {
+  cursor: crosshair;
+}
+
+.placing .slotCell:hover {
+  background: rgba(232, 163, 61, 0.22);
+  outline: 2px dashed var(--marigold);
+  outline-offset: -2px;
+}
+
+.placing .addHint {
+  opacity: 0.55;
+}
+
+.placing .slotCell:hover .addHint {
+  opacity: 0.95;
+  color: var(--marigold-dark);
+  font-weight: 700;
+}
+
+@media print {
   .table {
-    overflow-x: auto;
+    overflow: visible;
+    box-shadow: none;
+    border: 1.5px solid #222;
+    border-radius: 0;
+    background: #fff;
   }
 
-  .headerRow {
-    grid-template-columns:
-      58px repeat(
-        9,
-        82px
-      );
-
-    width: max-content;
-  }
-
+  /* rows fill the page width; inline min-width is for on-screen scrolling only */
+  .headerRow,
   .dayRow {
-    grid-template-columns:
-      58px
-      738px;
-
-    width: max-content;
+    min-width: 0 !important;
+    break-inside: avoid;
   }
 
-  .slots {
-    width: 738px;
+  .corner,
+  .dayCell {
+    position: static;
+  }
 
-    grid-template-columns:
-      repeat(
-        9,
-        82px
-      ) !important;
+  .corner,
+  .periodHeader {
+    background: #efe8d6;
+    color: #111;
+    border-color: #444;
+    font-size: 9pt;
+  }
+
+  .dayCell {
+    min-height: 21mm;
+    background: #f6f1e3;
+    color: #111;
+    border-top: 1px solid #444;
+    font-size: 9pt;
+    justify-content: center;
+  }
+
+  .slotCell {
+    min-height: 21mm;
+    border-color: #777;
+  }
+
+  /* no "today" highlight on paper */
+  .todayRow .dayCell {
+    background: #f6f1e3;
+    box-shadow: none;
+    color: #111;
+  }
+
+  .todayRow .slotCell {
+    background: transparent;
   }
 }

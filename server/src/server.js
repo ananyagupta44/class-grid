@@ -13,6 +13,7 @@ import subjectRoutes from "./routes/subjectRoutes.js";
 import sessionRoutes from "./routes/sessionRoutes.js";
 import timetableRoutes from "./routes/timetableRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import timetable from "./routes/timetable.routes.js";
 
 // __dirname equivalent for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +69,8 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/timetable", timetableRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
+
+app.use("/api/timetable", timetable);
 
 // --------------------------------------------------
 // Health Check
