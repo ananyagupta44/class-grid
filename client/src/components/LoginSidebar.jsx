@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import { useAuth } from "../context/AuthContext";
 import { useLoginSidebar } from "../context/LoginSidebarContext";
 
 import styles from "./LoginSidebar.module.css";
@@ -32,6 +33,8 @@ const roleCopy = {
 
 export default function LoginSidebar() {
   const router = useRouter();
+
+  const { login } = useAuth();
 
   const { isOpen, role, closeLogin } = useLoginSidebar();
 
@@ -112,69 +115,28 @@ export default function LoginSidebar() {
 
       const data = await response.json().catch(() => ({}));
 
-      // ==========================================
       // BACKEND ERROR
-      // ==========================================
-
       if (!response.ok) {
         throw new Error(data?.message || "Invalid credentials");
       }
 
-      // ==========================================
       // CHECK TOKEN
-      // ==========================================
-
       if (!data?.token) {
         throw new Error(
           "Login succeeded but no authentication token was returned.",
         );
       }
 
-      // ==========================================
-      // SAVE JWT
-      // ==========================================
-
-      localStorage.setItem("token", data.token);
-
-      // ==========================================
-      // SAVE USER
-      // ==========================================
-
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        if (data.user._id) {
-          localStorage.setItem("userId", data.user._id);
-        }
-      }
-
-      // ==========================================
-      // SAVE ROLE
-      // ==========================================
-
-      if (data.user?.role) {
-        localStorage.setItem("role", data.user.role);
-      }
-
-      console.log("Login successful:", data.user);
-
-      // ==========================================
-      // CLOSE LOGIN DRAWER
-      // ==========================================
+      // SAVE SESSION (localStorage + app-wide auth state, so the navbar
+      // and page permissions update immediately)
+      login(data.token, data.user);
 
       closeLogin();
 
-      // ==========================================
-      // REDIRECT
-      // ==========================================
-
       /*
-       * Admin → Home / management page
-       *
-       * Staff / Student can later be
-       * redirected to their own dashboard.
+       * admin             → Home (management) page
+       * staff / student   → Dashboard
        */
-
       if (data.user?.role === "admin") {
         router.push("/home");
       } else {
@@ -191,9 +153,7 @@ export default function LoginSidebar() {
 
   return (
     <>
-      {/* ==========================================
-          OVERLAY
-      =========================================== */}
+      {/* OVERLAY */}
 
       <div
         className={`${styles.overlay} ${isOpen ? styles.overlayOpen : ""}`}
@@ -201,9 +161,7 @@ export default function LoginSidebar() {
         aria-hidden={!isOpen}
       />
 
-      {/* ==========================================
-          LOGIN PANEL
-      =========================================== */}
+      {/* LOGIN PANEL */}
 
       <aside
         className={`${styles.panel} ${isOpen ? styles.panelOpen : ""}`}
@@ -241,9 +199,7 @@ export default function LoginSidebar() {
 
         <p className={styles.sub}>{copy.sub}</p>
 
-        {/* ========================================
-            ERROR
-        ========================================= */}
+        {/* ERROR */}
 
         {error && (
           <div className={styles.error} role="alert">
@@ -251,13 +207,9 @@ export default function LoginSidebar() {
           </div>
         )}
 
-        {/* ========================================
-            FORM
-        ========================================= */}
+        {/* FORM */}
 
         <form className={styles.form} onSubmit={handleSubmit}>
-          {/* IDENTIFIER */}
-
           <label className={styles.field}>
             <span>{copy.idLabel}</span>
 
@@ -273,8 +225,6 @@ export default function LoginSidebar() {
             />
           </label>
 
-          {/* PASSWORD */}
-
           <label className={styles.field}>
             <span>Password</span>
 
@@ -288,8 +238,6 @@ export default function LoginSidebar() {
               disabled={loading}
             />
           </label>
-
-          {/* SUBMIT */}
 
           <button type="submit" className={styles.submit} disabled={loading}>
             {loading ? "Logging in..." : "Log in"}

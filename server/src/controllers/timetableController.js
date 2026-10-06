@@ -6,52 +6,18 @@ import Subject from "../models/Subject.js";
 import mongoose from "mongoose";
 
 const PERIODS = [
-  {
-    id: "p1",
-    label: "09:00 - 09:50",
-    isBreak: false,
-  },
-  {
-    id: "p2",
-    label: "10:00 - 10:50",
-    isBreak: false,
-  },
-  {
-    id: "p3",
-    label: "11:00 - 11:50",
-    isBreak: false,
-  },
-  {
-    id: "p4",
-    label: "12:00 - 12:50",
-    isBreak: false,
-  },
-  {
-    id: "p5",
-    label: "01:00 - 01:50",
-    isBreak: false,
-  },
-  {
-    id: "p6",
-    label: "02:00 - 02:50",
-    isBreak: false,
-  },
-  {
-    id: "p7",
-    label: "03:00 - 03:50",
-    isBreak: false,
-  },
-  {
-    id: "p8",
-    label: "04:00 - 04:50",
-    isBreak: false,
-  },
-  {
-    id: "p9",
-    label: "05:00 - 05:50",
-    isBreak: false,
-  },
+  { id: "p1", label: "09:00 - 09:50", isBreak: false },
+  { id: "p2", label: "10:00 - 10:50", isBreak: false },
+  { id: "p3", label: "11:00 - 11:50", isBreak: false },
+  { id: "p4", label: "12:00 - 12:50", isBreak: false },
+  { id: "p5", label: "01:00 - 01:50", isBreak: false },
+  { id: "p6", label: "02:00 - 02:50", isBreak: false },
+  { id: "p7", label: "03:00 - 03:50", isBreak: false },
+  { id: "p8", label: "04:00 - 04:50", isBreak: false },
+  { id: "p9", label: "05:00 - 05:50", isBreak: false },
 ];
+
+const MAX_LAB_BLOCK = 3;
 
 function getRequiredPeriods(startPeriodId, duration) {
   const startIndex = PERIODS.findIndex((period) => period.id === startPeriodId);
@@ -75,15 +41,65 @@ function getRequiredPeriods(startPeriodId, duration) {
   return result;
 }
 
-function getClassDuration(subject, duration) {
-  if (subject.type !== "lab") {
+// ==================================================
+// LAB vs NORMAL ROOMS
+//
+// A room is a lab when its `type` contains "lab" (same rule the automatic
+// generator uses). Everything else is a normal classroom.
+//
+//   lab-only subject (type "lab", or L+T = 0)   → lab rooms only
+//   subject without lab hours (P = 0)           → normal rooms only
+//   subject with theory AND lab hours (e.g. 3-0-2)
+//        → lectures in normal rooms, the lab block in a lab room
+// ==================================================
+
+const isLabRoom = (room) => /lab/i.test(room?.type || "");
+
+function labProfile(subject) {
+  const [L = 0, T = 0, P = 0] = subject.ltp || [];
+
+  const labOnly = subject.type === "lab" || (P > 0 && L + T === 0);
+
+  return { labOnly, hasLab: labOnly || P > 0 };
+}
+
+function checkVenueType(subject, venue) {
+  const { labOnly, hasLab } = labProfile(subject);
+
+  const name = subject.subjectId || subject.name || "This subject";
+
+  if (labOnly && !isLabRoom(venue)) {
+    return {
+      ok: false,
+      message: `${name} is a lab subject — it can only be scheduled in a lab room (${venue.roomNo} is not a lab).`,
+    };
+  }
+
+  if (!hasLab && isLabRoom(venue)) {
+    return {
+      ok: false,
+      message: `${name} has no lab hours — it cannot be scheduled in a lab room (${venue.roomNo}).`,
+    };
+  }
+
+  return { ok: true };
+}
+
+// A class in a lab room is a lab block and runs for several periods in a row
+// (a 0-0-3 lab is ONE class of 3 periods). Anything else is a single period.
+function getClassDuration(subject, duration, venue) {
+  const labBlock = isLabRoom(venue) && labProfile(subject).hasLab;
+
+  if (!labBlock) {
     return 1;
   }
 
-  return Math.min(
-    Math.max(Number(duration) || Number(subject.labDuration) || 1, 1),
-    3,
-  );
+  // no length sent → the subject's lab length, else its P hours (max 3)
+  const [, , P = 0] = subject.ltp || [];
+
+  const fallback = Number(subject.labDuration) || Math.max(P, 1);
+
+  return Math.min(Math.max(Number(duration) || fallback, 1), MAX_LAB_BLOCK);
 }
 
 async function checkConflict({
@@ -284,7 +300,25 @@ export const createTimetableEntry = async (req, res) => {
       });
     }
 
-    const classDuration = getClassDuration(subject, duration);
+    const venue = await Room.findById(venueId);
+
+    if (!venue) {
+      return res.status(404).json({
+        success: false,
+        message: "Venue not found",
+      });
+    }
+
+    const venueCheck = checkVenueType(subject, venue);
+
+    if (!venueCheck.ok) {
+      return res.status(409).json({
+        success: false,
+        message: venueCheck.message,
+      });
+    }
+
+    const classDuration = getClassDuration(subject, duration, venue);
 
     const requiredPeriods = getRequiredPeriods(periodId, classDuration);
 
@@ -396,9 +430,31 @@ export const updateTimetableEntry = async (req, res) => {
       });
     }
 
+    const targetVenueId = venueId || existing.venue;
+
+    const venue = await Room.findById(targetVenueId);
+
+    if (!venue) {
+      return res.status(404).json({
+        success: false,
+        message: "Venue not found.",
+      });
+    }
+
+    const venueCheck = checkVenueType(subject, venue);
+
+    if (!venueCheck.ok) {
+      return res.status(409).json({
+        success: false,
+        message: venueCheck.message,
+      });
+    }
+
+    // moving a 3-period lab keeps it 3 periods
     const classDuration = getClassDuration(
       subject,
       duration || existing.duration || 1,
+      venue,
     );
 
     const requiredPeriods = getRequiredPeriods(periodId, classDuration);
@@ -414,7 +470,7 @@ export const updateTimetableEntry = async (req, res) => {
       session: course.session,
       course: course._id,
       faculty: facultyId,
-      venue: venueId,
+      venue: targetVenueId,
       day,
       periodIds: requiredPeriods,
       excludeId: existing._id,
@@ -436,7 +492,7 @@ export const updateTimetableEntry = async (req, res) => {
 
     existing.faculty = facultyId;
 
-    existing.venue = venueId;
+    existing.venue = targetVenueId;
 
     existing.day = day;
 
@@ -627,6 +683,17 @@ export const createComboTimetableEntry = async (req, res) => {
       return res.status(404).json({
         message: "Venue not found.",
       });
+    }
+
+    // lab / normal room must suit BOTH subjects
+    for (const subject of [subject1, subject2]) {
+      const venueCheck = checkVenueType(subject, venue);
+
+      if (!venueCheck.ok) {
+        return res.status(409).json({
+          message: venueCheck.message,
+        });
+      }
     }
 
     // 6. Check whether either course is already occupied

@@ -30,6 +30,17 @@
   cursor: grabbing;
 }
 
+/* not draggable → looks and behaves as a plain, view-only block */
+.static,
+.static:active {
+  cursor: default;
+}
+
+.static:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .entry strong,
 .entry > span {
   display: block;
@@ -122,5 +133,24 @@
   .entry {
     box-shadow: none !important;
     transform: none !important;
+  }
+
+  /* course timetable on a portrait page: smaller text so it fits */
+  .course {
+    padding: 0.8mm;
+    gap: 0.3mm;
+  }
+
+  .course strong {
+    font-size: 7pt;
+  }
+
+  .course > span {
+    font-size: 6.5pt;
+  }
+
+  .course > .duration,
+  .course > .comboBadge {
+    font-size: 5.5pt !important;
   }
 }

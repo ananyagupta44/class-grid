@@ -22,6 +22,63 @@
   gap: 0.85rem;
 }
 
+/* ===== sort toggle, top right corner of each panel ===== */
+
+.sortSwitch {
+  flex: 0 0 auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--parchment-card);
+}
+
+/* the sliding thumb */
+.sortSwitch::before {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  left: 0.15rem;
+  width: calc(50% - 0.15rem);
+  border-radius: 999px;
+  background: var(--marigold);
+  transition: transform 0.18s ease;
+}
+
+.sortSwitch[data-mode="alpha"]::before {
+  transform: translateX(100%);
+}
+
+.sortOption {
+  position: relative; /* above the thumb */
+  min-width: 2.9rem;
+  padding: 0.22rem 0.55rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.sortOption[aria-checked="true"] {
+  color: var(--slate-dark);
+}
+
+.sortOption:focus-visible {
+  outline: 2px solid var(--slate-dark);
+  outline-offset: 1px;
+}
+
+.singlePanel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sidePanel {
   min-width: 0; 
   width: 100%; 
@@ -65,7 +122,7 @@
 
 .panelHeader {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start; /* sort switch sits in the top-right corner */
   justify-content: space-between;
 
   gap: 0.5rem;
@@ -96,6 +153,8 @@
 }
 
 .panelHeader small {
+  display: block;
+  margin-top: 0.15rem;
   font-size: 0.72rem;
   color: var(--ink-muted);
 
@@ -165,6 +224,10 @@ EMPTY STATE
 }
 
 @media print {
+  .sortSwitch {
+    display: none;
+  }
+
   .panelArea {
     min-height: 0;
   }

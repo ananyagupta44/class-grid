@@ -13,6 +13,8 @@ export default function TimetableGrid({
   venues = [],
   variant = "course",
   placing = false,
+  readOnly = false,
+  printCompact = false, // portrait print: narrower columns, smaller text
   onDropEntry,
   onLegendDrop,
   onCellClick,
@@ -101,7 +103,12 @@ export default function TimetableGrid({
   }
 
   return (
-    <div className={`${styles.table} ${placing ? styles.placing : ""}`}>
+    <div
+      className={`${styles.table} ${placing ? styles.placing : ""} ${
+        printCompact ? styles.printCompact : ""
+      }`}
+      style={{ "--periods": periods.length }}
+    >
       {/* HEADER — column 1 is the TIME corner, columns 2..n+1 are periods */}
 
       <div className={styles.headerRow} style={rowStyle}>
@@ -146,6 +153,8 @@ export default function TimetableGrid({
                 <div
                   key={period.id}
                   className={`${styles.slotCell} ${
+                    readOnly ? styles.readOnlyCell : ""
+                  } ${
                     dragOverKey === `${day}|${period.id}`
                       ? styles.slotCellOver
                       : ""
@@ -154,28 +163,36 @@ export default function TimetableGrid({
                     gridColumn: index + 2,
                     gridRow: 1,
                   }}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setDragOverKey(`${day}|${period.id}`);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "copy";
-                    setDragOverKey(`${day}|${period.id}`);
-                  }}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setDragOverKey((key) =>
-                        key === `${day}|${period.id}` ? "" : key,
-                      );
-                    }
-                  }}
-                  onDrop={(event) => {
-                    handleDrop(event, day, period.id);
-                  }}
-                  onClick={() => onCellClick?.(day, period.id)}
+                  {...(readOnly
+                    ? {}
+                    : {
+                        onDragEnter: (event) => {
+                          event.preventDefault();
+                          setDragOverKey(`${day}|${period.id}`);
+                        },
+                        onDragOver: (event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "copy";
+                          setDragOverKey(`${day}|${period.id}`);
+                        },
+                        onDragLeave: (event) => {
+                          if (
+                            !event.currentTarget.contains(event.relatedTarget)
+                          ) {
+                            setDragOverKey((key) =>
+                              key === `${day}|${period.id}` ? "" : key,
+                            );
+                          }
+                        },
+                        onDrop: (event) => {
+                          handleDrop(event, day, period.id);
+                        },
+                        onClick: () => onCellClick?.(day, period.id),
+                      })}
                 >
-                  {!entry && <span className={styles.addHint}>+</span>}
+                  {!entry && !readOnly && onCellClick && (
+                    <span className={styles.addHint}>+</span>
+                  )}
                 </div>
               );
             })}
@@ -234,6 +251,7 @@ export default function TimetableGrid({
                         venue={comboEntry.venue}
                         course={comboEntry.course}
                         variant={variant}
+                        draggable={!readOnly && Boolean(onDropEntry)}
                         comboEntries={comboEntries}
                       />
                     </div>
@@ -272,6 +290,7 @@ export default function TimetableGrid({
                       venue={entry.venue}
                       course={entry.course}
                       variant={variant}
+                      draggable={!readOnly && Boolean(onDropEntry)}
                     />
                   </div>
                 );

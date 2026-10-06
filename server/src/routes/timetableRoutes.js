@@ -13,18 +13,40 @@ import restrictTo from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Get timetable
+/*
+ * student → view only
+ * staff   → view + edit timetable entries
+ * admin   → view + edit timetable entries
+ */
+
+// View timetable — any logged-in user
 router.get("/", protect, getTimetable);
 
-// Add class
-router.post("/", protect, restrictTo("admin"), createTimetableEntry);
+// Add class — admin + staff
+router.post("/", protect, restrictTo("admin", "staff"), createTimetableEntry);
 
-// Edit / move class
-router.put("/:id", protect, restrictTo("admin"), updateTimetableEntry);
+// Add combo class — admin + staff
+router.post(
+  "/combo",
+  protect,
+  restrictTo("admin", "staff"),
+  createComboTimetableEntry,
+);
 
-// Delete class
-router.delete("/:id", protect, restrictTo("admin"), deleteTimetableEntry);
+// Edit / move class — admin + staff
+router.put(
+  "/:id",
+  protect,
+  restrictTo("admin", "staff"),
+  updateTimetableEntry,
+);
 
-router.post("/combo", protect, restrictTo("admin"), createComboTimetableEntry);
+// Delete class — admin + staff
+router.delete(
+  "/:id",
+  protect,
+  restrictTo("admin", "staff"),
+  deleteTimetableEntry,
+);
 
 export default router;

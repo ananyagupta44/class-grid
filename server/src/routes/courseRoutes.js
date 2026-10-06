@@ -13,23 +13,43 @@ import restrictTo from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
+/*
+ * student → read only
+ * staff   → read only (they edit timetable entries, not course setup)
+ * admin   → everything
+ */
+
+// Create course — admin only
+router.post("/", protect, restrictTo("admin"), createCourse);
+
+// Get all courses — any logged-in user
+router.get("/", protect, getCourses);
+
+// Subjects that can still be added to a course — admin only
+router.get(
+  "/:courseId/available-subjects",
+  protect,
+  restrictTo("admin"),
+  getAvailableSubjects,
+);
+
+// Add subject to a course — admin only
+router.post(
+  "/:courseId/subjects",
+  protect,
+  restrictTo("admin"),
+  addSubjectToCourse,
+);
+
+// Assign faculty to a subject — admin only
 router.patch(
   "/:courseId/subjects/:subjectId/faculty",
   protect,
   restrictTo("admin"),
   assignFacultyToSubject,
 );
-// Create course
-router.post("/", createCourse);
 
-// Get all courses
-router.get("/", getCourses);
-
-router.get("/:courseId/available-subjects", protect, getAvailableSubjects);
-
-router.post("/:courseId/subjects", protect, addSubjectToCourse);
-
-// Get single course
-router.get("/:id", getCourseById);
+// Get single course — any logged-in user
+router.get("/:id", protect, getCourseById);
 
 export default router;

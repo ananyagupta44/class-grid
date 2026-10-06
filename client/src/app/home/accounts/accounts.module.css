@@ -1,0 +1,262 @@
+.page {
+  width: min(36rem, 100%);
+  margin: 0 auto;
+}
+
+.head {
+  margin-bottom: 1.25rem;
+}
+
+.kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--marigold-dark);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.65rem;
+  color: var(--ink);
+}
+
+.sub {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.card,
+.success {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--parchment-card);
+  box-shadow: var(--shadow-card);
+}
+
+.card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #e3b4ad;
+  border-radius: var(--radius-sm);
+  background: #fbeceb;
+  color: #b3392a;
+  font-size: 0.85rem;
+}
+
+.error button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* role switch */
+
+.roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--parchment);
+}
+
+.role {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.roleOn {
+  background: var(--marigold);
+  color: var(--slate-dark);
+}
+
+/* fields */
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.field > span,
+.field > label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--parchment);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--marigold);
+  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);
+}
+
+.field input[aria-invalid="true"] {
+  border-color: #b3392a;
+}
+
+.hint {
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+.fieldError {
+  min-height: 1rem;
+  font-size: 0.74rem;
+  color: #b3392a;
+}
+
+.passwordRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.passwordRow input {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.generate {
+  flex: 0 0 auto;
+  padding: 0 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.generate:hover:not(:disabled) {
+  border-color: var(--marigold);
+  color: var(--marigold-dark);
+}
+
+.submit {
+  padding: 0.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--marigold-dark);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* success */
+
+.success h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.success dl {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+  border: 1px dashed var(--marigold);
+  border-radius: var(--radius-sm);
+  background: #fdf3e2;
+}
+
+.success dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.success dd {
+  margin: 0.1rem 0 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.success p {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.successActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.successActions button {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.successActions button:first-child {
+  border-color: var(--marigold);
+  background: var(--marigold);
+  color: var(--slate-dark);
+}
+
+.successActions button:hover {
+  border-color: var(--marigold-dark);
+}

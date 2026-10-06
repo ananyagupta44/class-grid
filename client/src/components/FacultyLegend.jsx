@@ -14,6 +14,7 @@ export default function FacultyLegend({
   onAddClass,
   selectedBlock = null,
   onSelectBlock,
+  canManage = true, // false → no "+ Add Subject" and faculty can't be reassigned
 }) {
   const [showSubjects, setShowSubjects] = useState(false);
 
@@ -25,6 +26,7 @@ export default function FacultyLegend({
       facultyId: item.faculty?._id || item.faculty?.id || "",
       blockType: block.type,
       blockNumber: block.number,
+      duration: block.duration || 1, // a 3-hour lab is ONE block of 3 periods
     };
   }
 
@@ -88,16 +90,18 @@ export default function FacultyLegend({
             </button>
           )}
 
-          <button
-            type="button"
-            className={styles.addSubject}
-            onClick={() => setShowSubjects((prev) => !prev)}
-          >
-            + Add Subject
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              className={styles.addSubject}
+              onClick={() => setShowSubjects((prev) => !prev)}
+            >
+              + Add Subject
+            </button>
+          )}
         </div>
       </div>
-      {showSubjects && (
+      {canManage && showSubjects && (
         <div className={styles.subjectPicker}>
           <select
             defaultValue=""
@@ -146,21 +150,25 @@ export default function FacultyLegend({
                     : "No faculty assigned"}
                 </span>
 
-                <select
-                  value={assignedFaculty?.id || ""}
-                  onChange={(e) => onAssignFaculty(subject.id, e.target.value)}
-                >
-                  <option value="">Select faculty</option>
+                {canManage && (
+                  <select
+                    value={assignedFaculty?.id || ""}
+                    onChange={(e) =>
+                      onAssignFaculty(subject.id, e.target.value)
+                    }
+                  >
+                    <option value="">Select faculty</option>
 
-                  {faculties.map((faculty) => (
-                    <option
-                      key={faculty._id || faculty.id}
-                      value={faculty._id || faculty.id}
-                    >
-                      {faculty.name}
-                    </option>
-                  ))}
-                </select>
+                    {faculties.map((faculty) => (
+                      <option
+                        key={faculty._id || faculty.id}
+                        value={faculty._id || faculty.id}
+                      >
+                        {faculty.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className={styles.blockRow}>
@@ -186,7 +194,11 @@ export default function FacultyLegend({
                               : { ...payload, label: block.label },
                           )
                         }
-                        title={`Drag ${block.label} to the timetable, or click it and then click a slot`}
+                        title={`Drag ${block.label} to the timetable, or click it and then click a slot${
+                          block.duration > 1
+                            ? ` (takes ${block.duration} periods in a row)`
+                            : ""
+                        }`}
                       >
                         {block.label}
                       </button>

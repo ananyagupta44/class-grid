@@ -11,13 +11,13 @@ import restrictTo from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create session - Admin only
+// Create session — admin only
 router.post("/", protect, restrictTo("admin"), createSession);
 
-// Get all sessions
-router.get("/", getSessions);
+// Get all sessions — any logged-in user
+router.get("/", protect, getSessions);
 
-// Get single session
-router.get("/:id", getSessionById);
+// Get single session — any logged-in user
+router.get("/:id", protect, getSessionById);
 
 export default router;

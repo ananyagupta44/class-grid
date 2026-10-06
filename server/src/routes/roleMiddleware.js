@@ -1,8 +1,11 @@
-// usage: router.post("/something", protect, restrictTo("admin"), handler)
-//        router.put("/timetable/:id", protect, restrictTo("admin", "staff"), handler)
+// usage: router.post("/x", protect, restrictTo("admin"), handler)
+//        router.put("/y", protect, restrictTo("admin", "staff"), handler)
 //
-// Roles are compared case-insensitively. (The old version compared exactly,
-// so restrictTo("ADMIN") never matched the stored role "admin".)
+// Roles are compared case-insensitively. The old version compared exactly,
+// so restrictTo("ADMIN") never matched the stored role "admin".
+//
+// NOTE: this relies on the JWT containing the role. Your generateToken()
+// must sign { id: user._id, role: user.role }.
 
 const restrictTo = (...allowedRoles) => {
   const allowed = allowedRoles.map((role) => String(role).toLowerCase());

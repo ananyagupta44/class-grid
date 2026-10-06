@@ -1,0 +1,133 @@
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* extends the hover area downwards so the card is reachable */
+  padding-bottom: 0.4rem;
+  margin-bottom: -0.4rem;
+}
+
+.avatar {
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--marigold);
+  border-radius: 50%;
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.avatar:hover,
+.avatar:focus-visible {
+  background: var(--marigold-dark);
+  border-color: var(--marigold-dark);
+  outline: none;
+}
+
+.card {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  width: 17rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--parchment-card);
+  box-shadow: var(--shadow-panel);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.bigAvatar {
+  flex: 0 0 auto;
+  width: 2.8rem;
+  height: 2.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--marigold);
+  color: var(--slate-dark);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.who strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #fdf3e2;
+  color: var(--marigold-dark);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.details {
+  margin: 0;
+  padding: 0.8rem 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.details dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.details dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.logout {
+  width: 100%;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #b3392a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logout:hover,
+.logout:focus-visible {
+  border-color: #b3392a;
+  background: rgba(179, 57, 42, 0.07);
+  outline: none;
+}

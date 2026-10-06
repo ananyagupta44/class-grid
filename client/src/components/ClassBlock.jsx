@@ -81,7 +81,7 @@ export default function ClassBlock({
       type="button"
       className={`${styles.entry} ${styles[variant]} ${
         compact ? styles.compact : ""
-      }`}
+      } ${draggable ? "" : styles.static}`}
       draggable={draggable}
       title={tooltip}
       onDragStart={(event) => {

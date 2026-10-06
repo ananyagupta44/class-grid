@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import TabSwitcher from "../../components/TabSwitcher";
@@ -9,8 +9,11 @@ import TimetableGrid from "../../components/TimetableGrid";
 import RightPanel from "../../components/RightPanel";
 import FacultyLegend from "../../components/FacultyLegend";
 import PrintPicker from "../../components/PrintPicker";
+import GenerateTimetable from "../../components/GenerateTimetable";
+import { withLabBlocks } from "../../components/legendBlocks";
 import EditClassModal from "../../components/EditClassModal";
 import { useTimetable } from "../../context/TimetableContext";
+import { useAuth } from "../../context/AuthContext";
 
 import { DAYS, PERIODS } from "../../context/TimetableContext";
 
@@ -63,6 +66,25 @@ export default function Dashboard() {
   const { entries, setEntries, addEntry, updateEntry, addComboEntry } =
     useTimetable();
 
+  /*
+   * ROLE PERMISSIONS
+   *   student → view course + venue timetables only, no editing
+   *   staff   → edit timetable entries; sees own timetable on the faculty tab
+   *   admin   → everything
+   */
+  const {
+    user,
+    ready: authReady,
+    isStaff,
+    isStudent,
+    canEditTimetable,
+    canManageCourses,
+  } = useAuth();
+
+  const allowedTabs = isStudent
+    ? ["course", "venue"]
+    : ["course", "faculty", "venue"];
+
   const urlCourseId = searchParams.get("courseId");
 
   const [courses, setCourses] = useState([]);
@@ -100,6 +122,9 @@ export default function Dashboard() {
 
   // faculty / venue download: picker dialog + ids chosen for printing
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // admin: auto-generate the timetable of the whole session
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [printIds, setPrintIds] = useState(null);
 
   // once the print-only pages are rendered, open the print dialog;
@@ -134,6 +159,13 @@ export default function Dashboard() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [warning, selectedBlock]);
 
+  // the page skeleton only shows for the very first load; switching course
+  // afterwards must NOT blank the page (it would reset the scrolling feed)
+  const firstLoadDone = useRef(false);
+
+  // /timetable returns the entries of ALL courses, so it is fetched once
+  const entriesLoaded = useRef(false);
+
   /*
    * LOAD COURSES
    */
@@ -145,7 +177,12 @@ export default function Dashboard() {
 
         const data = response.courses || [];
 
-        setCourses(data);
+        setCourses((prev) =>
+          prev.length === data.length &&
+          prev.every((item, i) => item._id === data[i]._id)
+            ? prev
+            : data,
+        );
 
         if (!urlCourseId && data.length) {
           router.replace(`/dashboard?courseId=${data[0]._id}`);
@@ -169,7 +206,7 @@ export default function Dashboard() {
 
     async function loadDashboard() {
       try {
-        setLoading(true);
+        if (!firstLoadDone.current) setLoading(true);
         setError("");
 
         const response = await apiRequest(`/dashboard/${urlCourseId}`);
@@ -196,11 +233,16 @@ export default function Dashboard() {
 
         setVenueTimetables(response.venueTimetables || []);
 
-        const timetableResponse = await apiRequest("/timetable");
+        if (!entriesLoaded.current) {
+          const timetableResponse = await apiRequest("/timetable");
 
-        setEntries(timetableResponse.entries || []);
+          setEntries(timetableResponse.entries || []);
+          entriesLoaded.current = true;
+        }
       } catch (err) {
         setError(err.message);
+
+        entriesLoaded.current = false;
 
         setCourse(null);
         setFaculties([]);
@@ -211,6 +253,7 @@ export default function Dashboard() {
         setVenueTimetables([]);
       } finally {
         setLoading(false);
+        firstLoadDone.current = true;
       }
     }
 
@@ -224,20 +267,157 @@ export default function Dashboard() {
   const currentCourse = course;
 
   /*
-   * COURSE CHANGE
+   * COURSE FEED
+   *
+   * Every course's timetable sits in one scrolling column ("feed"). The course
+   * that is mostly in view is the FOCUSED course: it is highlighted in the left
+   * rail and, once scrolling settles, becomes the current course (URL, legend,
+   * right panel). Clicking a course in the rail scrolls the feed to it.
+   */
+
+  const feedRef = useRef(null);
+  const railRef = useRef(null);
+  const [feedEl, setFeedEl] = useState(null);
+  const [focusId, setFocusId] = useState(urlCourseId || "");
+  const focusIdRef = useRef(urlCourseId || "");
+  const ignoreObserverUntil = useRef(0);
+  // URL updates this page started itself (so it can ignore them coming back)
+  const pendingUrlRef = useRef(new Set());
+
+  // stable callback ref (an inline one would re-run every render)
+  const feedRefCallback = useCallback((element) => {
+    feedRef.current = element;
+    setFeedEl(element);
+  }, []);
+
+  function scrollToCourse(id, behavior = "smooth") {
+    const feed = feedRef.current;
+
+    if (!feed || !id) return;
+
+    const section = feed.querySelector(`[data-course-id="${id}"]`);
+
+    if (!section) return;
+
+    // don't let the scroll we start ourselves change the focus on the way
+    ignoreObserverUntil.current =
+      Date.now() + (behavior === "smooth" ? 800 : 150);
+
+    feed.scrollTo({ top: section.offsetTop, behavior });
+  }
+
+  function focusCourse(id, behavior = "smooth") {
+    focusIdRef.current = id;
+    setFocusId(id);
+    scrollToCourse(id, behavior);
+  }
+
+  /*
+   * COURSE CHANGE (dropdown)
    */
 
   function handleCourseChange(courseId) {
     if (!courseId) return;
 
+    focusCourse(courseId);
+
+    pendingUrlRef.current.add(courseId);
     router.push(`/dashboard?courseId=${courseId}`);
   }
+
+  // scrolling settled on another course → make it the current course
+  // (replace, not push: scrolling must not fill the browser history)
+  useEffect(() => {
+    if (!focusId || focusId === urlCourseId) return undefined;
+
+    const timer = setTimeout(() => {
+      pendingUrlRef.current.add(focusId);
+      router.replace(`/dashboard?courseId=${focusId}`, { scroll: false });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [focusId, urlCourseId, router]);
+
+  // the URL changed from OUTSIDE (back / forward button, a link) → follow it
+  useEffect(() => {
+    if (!urlCourseId) return;
+
+    // our own update coming back — nothing to do
+    if (pendingUrlRef.current.delete(urlCourseId)) return;
+
+    if (urlCourseId !== focusIdRef.current) {
+      focusCourse(urlCourseId, "auto");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCourseId]);
+
+  // feed just appeared (first load / returning from another tab) → jump to
+  // the current course without animation
+  useEffect(() => {
+    if (feedEl) scrollToCourse(focusIdRef.current || urlCourseId, "auto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedEl, courses.length]);
+
+  // which course section is mostly visible?
+  useEffect(() => {
+    if (!feedEl) return undefined;
+
+    const sections = feedEl.querySelectorAll("[data-course-id]");
+
+    if (!sections.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (records) => {
+        if (Date.now() < ignoreObserverUntil.current) return;
+
+        const best = records
+          .filter((record) => record.intersectionRatio >= 0.55)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        const id = best?.target.getAttribute("data-course-id");
+
+        if (id && id !== focusIdRef.current) {
+          focusIdRef.current = id;
+          setFocusId(id);
+        }
+      },
+      { root: feedEl, threshold: [0.55, 0.8, 1] },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, [feedEl, courses]);
+
+  // keep the highlighted rail item visible when the rail itself scrolls
+  useEffect(() => {
+    const rail = railRef.current;
+    const item = rail?.querySelector('[aria-current="true"]');
+
+    if (!rail || !item) return;
+
+    if (item.offsetTop < rail.scrollTop) {
+      rail.scrollTop = item.offsetTop - 8;
+    } else if (
+      item.offsetTop + item.offsetHeight >
+      rail.scrollTop + rail.clientHeight
+    ) {
+      rail.scrollTop =
+        item.offsetTop + item.offsetHeight - rail.clientHeight + 8;
+    }
+  }, [focusId, courses]);
+
+  useEffect(() => {
+    if (isStudent && viewType === "faculty") setViewType("course");
+  }, [isStudent, viewType]);
 
   /*
    * TAB CHANGE
    */
 
   function handleTabChange(next) {
+    if (!allowedTabs.includes(next)) return;
+
     setSelectedBlock(null);
     setPickerOpen(false);
     setViewType(next);
@@ -261,6 +441,41 @@ export default function Dashboard() {
    * MAIN GRID
    */
 
+  // the faculty record that belongs to the logged-in staff member
+  // (staff ID on the account = facultyId on the faculty record)
+  const ownFaculty = useMemo(() => {
+    if (!isStaff || !user) return null;
+
+    const same = (a, b) =>
+      a &&
+      b &&
+      String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+    return (
+      faculties.find((item) => same(item.facultyId, user.identifier)) ||
+      faculties.find((item) => same(item.email, user.email)) ||
+      null
+    );
+  }, [isStaff, user, faculties]);
+
+  const ownFacultyId = ownFaculty?._id || ownFaculty?.id || "";
+
+  // every course's entries, for the continuous feed
+  const entriesByCourse = useMemo(() => {
+    const map = new Map();
+
+    for (const entry of entries) {
+      const key = String(getId(entry.course) || entry.courseId || "");
+
+      if (!key) continue;
+
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(entry);
+    }
+
+    return map;
+  }, [entries]);
+
   const gridEntries = useMemo(() => {
     if (viewType === "course") {
       return entries.filter((entry) => {
@@ -280,12 +495,13 @@ export default function Dashboard() {
       });
     }
 
-    if (viewType === "faculty") {
-      return [];
+    // staff: their own timetable is the main timetable on the faculty tab
+    if (viewType === "faculty" && isStaff && ownFacultyId) {
+      return entries.filter((entry) => getId(entry.faculty) === ownFacultyId);
     }
 
     return [];
-  }, [entries, urlCourseId, viewType]);
+  }, [entries, urlCourseId, viewType, isStaff, ownFacultyId]);
 
   /*
    * FACULTY CARDS
@@ -298,6 +514,8 @@ export default function Dashboard() {
 
         title: faculty.name,
 
+        code: faculty.facultyId,
+
         subtitle: faculty.designation,
 
         entries: entries.filter(
@@ -305,6 +523,23 @@ export default function Dashboard() {
         ),
       })),
     [faculties, entries],
+  );
+
+  // legend chips: a lab (the P in L-T-P) is ONE block of N periods,
+  // not N separate one-period classes
+  const legendForUi = useMemo(
+    () => legend.map((item) => withLabBlocks(item, gridEntries, getId)),
+    [legend, gridEntries],
+  );
+
+  // staff on the faculty tab: their own timetable is the main one,
+  // so the mini timetables only list the other faculty
+  const rightFacultyCards = useMemo(
+    () =>
+      viewType === "faculty" && isStaff
+        ? facultyCards.filter((card) => card.id !== ownFacultyId)
+        : facultyCards,
+    [facultyCards, viewType, isStaff, ownFacultyId],
   );
 
   /*
@@ -411,7 +646,7 @@ export default function Dashboard() {
         .filter((card) => chosen.has(String(card.id)))
         .map((card) => ({
           id: String(card.id),
-          title: card.title,
+          heading: [card.code, card.title].filter(Boolean).join(" · "),
           subtitle: card.subtitle,
           entries: card.entries,
         }));
@@ -422,7 +657,7 @@ export default function Dashboard() {
         .filter(({ venue }) => chosen.has(String(venue._id)))
         .map(({ venue, entries: venueEntries }) => ({
           id: String(venue._id),
-          title: venue.roomNo || venue.name,
+          heading: venue.roomNo || venue.name,
           subtitle: [
             venue.type || venue.category,
             venue.capacity ? `Capacity ${venue.capacity}` : "",
@@ -441,6 +676,8 @@ export default function Dashboard() {
    */
 
   function openAddClass(day = "", periodId = "", venueId = "") {
+    if (!canEditTimetable) return;
+
     if (!currentCourse) {
       setError("Please select a course first.");
       return;
@@ -467,6 +704,8 @@ export default function Dashboard() {
    */
 
   async function handleDropEntry(entryId, day, periodId) {
+    if (!canEditTimetable) return;
+
     try {
       const entry = entries.find(
         (item) => item.id === entryId || item._id === entryId,
@@ -567,6 +806,8 @@ export default function Dashboard() {
   }
 
   async function handleAddSubject(subjectId) {
+    if (!canManageCourses) return;
+
     try {
       const courseId = currentCourse?._id || currentCourse?.id;
 
@@ -590,6 +831,8 @@ export default function Dashboard() {
    */
 
   function handleLegendDrop(payload, day, periodId) {
+    if (!canEditTimetable) return;
+
     setModalState({
       mode: "create",
 
@@ -607,7 +850,8 @@ export default function Dashboard() {
 
       blockNumber: payload.blockNumber,
 
-      duration: 1,
+      // a 3-hour lab is one block of 3 periods, not 1
+      duration: payload.duration || 1,
     });
   }
 
@@ -628,10 +872,14 @@ export default function Dashboard() {
   }
 
   function handleVenueCellClick(day, periodId, venueId) {
+    if (!canEditTimetable) return;
+
     openAddClass(day, periodId, venueId);
   }
 
   function handleVenueDrop(payload, day, periodId, venueId) {
+    if (!canEditTimetable) return;
+
     if (payload.kind === "legend") {
       setModalState({
         courseId: payload.courseId || currentCourse?._id || currentCourse?.id,
@@ -644,6 +892,8 @@ export default function Dashboard() {
 
         day,
         periodId,
+
+        duration: payload.duration || 1,
       });
 
       return;
@@ -659,6 +909,8 @@ export default function Dashboard() {
    */
 
   function handleEditEntry(entry) {
+    if (!canEditTimetable) return;
+
     const modalData = {
       ...entry,
 
@@ -698,6 +950,8 @@ export default function Dashboard() {
    */
 
   async function handleSave(form) {
+    if (!canEditTimetable) return;
+
     console.log("========== HANDLE SAVE START ==========");
     console.log("FORM:", form);
     console.log("IS COMBO:", form?.isCombo);
@@ -783,6 +1037,8 @@ export default function Dashboard() {
    */
 
   async function handleDelete(id) {
+    if (!canEditTimetable) return;
+
     try {
       const entry = entries.find((item) => (item.id || item._id) === id);
 
@@ -829,6 +1085,8 @@ export default function Dashboard() {
    */
 
   async function handleAssignFaculty(subjectId, facultyId) {
+    if (!canManageCourses) return;
+
     try {
       const response = await apiRequest(
         `/courses/${course._id}/subjects/${subjectId}/faculty`,
@@ -875,11 +1133,17 @@ export default function Dashboard() {
     }
   }
 
+  const feedCourses = courses.length
+    ? courses
+    : currentCourse
+      ? [currentCourse]
+      : [];
+
   /*
    * LOADING
    */
 
-  if (loading) {
+  if (loading || !authReady) {
     return (
       <div
         className={styles.page}
@@ -935,7 +1199,11 @@ export default function Dashboard() {
         </div>
 
         <div className={styles.controls}>
-          <TabSwitcher active={viewType} onChange={handleTabChange} />
+          <TabSwitcher
+            active={viewType}
+            onChange={handleTabChange}
+            allowedTabs={allowedTabs}
+          />
 
           {viewType === "course" && (
             <label className={styles.coursePicker}>
@@ -950,6 +1218,17 @@ export default function Dashboard() {
                 ))}
               </select>
             </label>
+          )}
+
+          {canManageCourses && viewType === "course" && (
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => setGenerateOpen(true)}
+              title="Automatically generate the timetable for this session"
+            >
+              Auto-generate
+            </button>
           )}
 
           <button
@@ -985,7 +1264,7 @@ export default function Dashboard() {
 
       {/* MAIN */}
 
-      {viewType === "faculty" ? (
+      {viewType === "faculty" && !isStaff ? (
         /*
          * FACULTY VIEW — FULL WIDTH, ALL FACULTY TIMETABLES IN A GRID
          */
@@ -1044,6 +1323,7 @@ export default function Dashboard() {
                     days={DAYS}
                     periods={PERIODS}
                     variant="faculty"
+                    readOnly
                     courses={courses}
                     faculties={faculties}
                     venues={venues}
@@ -1115,6 +1395,7 @@ export default function Dashboard() {
                       days={DAYS}
                       periods={PERIODS}
                       variant="venue"
+                      readOnly
                       courses={courses}
                       faculties={faculties}
                       venues={venues}
@@ -1134,7 +1415,7 @@ export default function Dashboard() {
          */
         <div className={styles.mainRow}>
           <div className={styles.gridCol}>
-            {viewType === "course" && selectedBlock && (
+            {viewType === "course" && canEditTimetable && selectedBlock && (
               <div className={styles.placingHint} role="status">
                 <span>
                   Placing <strong>{selectedBlock.label}</strong> — click a slot
@@ -1148,43 +1429,202 @@ export default function Dashboard() {
             )}
 
             {viewType === "course" && (
-              <div data-print-area className={styles.printArea}>
-                <div className={styles.printHeader}>
-                  <div>
-                    <h1>Class Timetable</h1>
-                    <p>
-                      {currentCourse?.courseId || "—"} · Semester{" "}
-                      {currentCourse?.semester || "—"}
-                    </p>
-                  </div>
+              <div
+                className={styles.courseFeedLayout}
+                style={{
+                  "--feed-h": `calc(6.2rem + ${DAYS.length} * 4.7rem)`,
+                }}
+              >
+                {/* LEFT RAIL — all courses */}
+                <nav
+                  className={styles.courseRail}
+                  aria-label="Courses"
+                  ref={railRef}
+                >
+                  <ul>
+                    {feedCourses.map((item) => {
+                      const active = String(item._id) === String(focusId);
 
-                  <p>
-                    {currentCourse?.session?.sessionId
-                      ? `Session ${currentCourse.session.sessionId}`
-                      : ""}
-                  </p>
+                      return (
+                        <li key={item._id}>
+                          <button
+                            type="button"
+                            className={`${styles.railItem} ${
+                              active ? styles.railItemActive : ""
+                            }`}
+                            aria-current={active ? "true" : undefined}
+                            title={`${item.courseId} — Semester ${item.semester}`}
+                            onClick={() => focusCourse(item._id)}
+                          >
+                            {item.courseId}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </nav>
+
+                {/* CONTINUOUS FEED — one timetable after another */}
+                <div
+                  className={styles.feed}
+                  ref={feedRefCallback}
+                  tabIndex={0}
+                  aria-label="Course timetables"
+                >
+                  {feedCourses.map((item) => {
+                    const isCurrent =
+                      String(currentCourse?._id) === String(item._id);
+
+                    // only the current course (the one the legend belongs to)
+                    // can be edited; the others are view-only until scrolled to
+                    const editable = isCurrent && canEditTimetable;
+
+                    return (
+                      <section
+                        key={item._id}
+                        data-course-id={item._id}
+                        className={`${styles.feedSection} ${
+                          isCurrent ? styles.printArea : ""
+                        }`}
+                        {...(isCurrent ? { "data-print-area": "" } : {})}
+                      >
+                        <div className={styles.feedTitle}>
+                          <strong>{item.courseId}</strong>
+                          <span>Semester {item.semester}</span>
+                        </div>
+
+                        {isCurrent && (
+                          <>
+                            <div className={styles.printInstitute}>
+                              <h2>BIRLA INSTITUTE OF TECHNOLOGY</h2>
+                              <p>MESRA</p>
+                              <p>OFF CAMPUS JAIPUR</p>
+                            </div>
+
+                            <div className={styles.printHeader}>
+                              <div>
+                                <h1>
+                                  {currentCourse?.courseId || "Timetable"}
+                                </h1>
+                                <p>Semester {currentCourse?.semester || "—"}</p>
+                              </div>
+
+                              <p>
+                                {currentCourse?.session?.sessionId
+                                  ? `Session ${currentCourse.session.sessionId}`
+                                  : ""}
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        <TimetableGrid
+                          entries={entriesByCourse.get(String(item._id)) || []}
+                          days={DAYS}
+                          periods={PERIODS}
+                          variant="course"
+                          printCompact
+                          readOnly={!editable}
+                          courses={courses}
+                          faculties={faculties}
+                          venues={venues}
+                          onDropEntry={editable ? handleDropEntry : undefined}
+                          onLegendDrop={editable ? handleLegendDrop : undefined}
+                          onCellClick={editable ? handleCellClick : undefined}
+                          placing={editable && Boolean(selectedBlock)}
+                          onEditEntry={editable ? handleEditEntry : undefined}
+                        />
+
+                        {isCurrent && (
+                          <>
+                            {/* LEGEND — prints under the timetable */}
+                            {legend.length > 0 && (
+                              <table className={styles.printLegend}>
+                                <caption>Legend</caption>
+
+                                <thead>
+                                  <tr>
+                                    <th>S.No.</th>
+                                    <th>Code</th>
+                                    <th>Subject name [Credits]</th>
+                                    <th>Main faculty name</th>
+                                    <th>Code</th>
+                                  </tr>
+                                </thead>
+
+                                <tbody>
+                                  {legend.map((item, index) => {
+                                    const subject = item.subject || {};
+                                    const teacher = item.faculty || {};
+
+                                    return (
+                                      <tr
+                                        key={subject._id || subject.id || index}
+                                      >
+                                        <td>{index + 1}</td>
+                                        <td>{subject.subjectId}</td>
+                                        <td>
+                                          {subject.name}
+                                          {subject.credits != null &&
+                                          subject.credits !== ""
+                                            ? ` [${subject.credits}]`
+                                            : ""}
+                                        </td>
+                                        <td>{teacher.name || "—"}</td>
+                                        <td>{teacher.facultyId || ""}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
-
-                <TimetableGrid
-                  entries={gridEntries}
-                  days={DAYS}
-                  periods={PERIODS}
-                  variant="course"
-                  courses={courses}
-                  faculties={faculties}
-                  venues={venues}
-                  onDropEntry={handleDropEntry}
-                  onLegendDrop={handleLegendDrop}
-                  onCellClick={handleCellClick}
-                  placing={Boolean(selectedBlock)}
-                  onEditEntry={handleEditEntry}
-                />
               </div>
             )}
 
-            {viewType === "course" && (
+            {/* STAFF — faculty tab: my own timetable is the main one */}
+            {viewType === "faculty" && isStaff && (
+              <div className={styles.myTimetable}>
+                <div className={styles.venueHeader}>
+                  <div>
+                    <h3>
+                      {ownFaculty
+                        ? `My timetable — ${ownFaculty.name}`
+                        : "My timetable"}
+                    </h3>
+                    <span>{ownFaculty?.facultyId || user?.identifier}</span>
+                  </div>
+                </div>
+
+                {ownFaculty ? (
+                  <TimetableGrid
+                    entries={gridEntries}
+                    days={DAYS}
+                    periods={PERIODS}
+                    variant="faculty"
+                    courses={courses}
+                    faculties={faculties}
+                    venues={venues}
+                    onDropEntry={handleDropEntry}
+                    onEditEntry={handleEditEntry}
+                  />
+                ) : (
+                  <p className={styles.venueNoResults}>
+                    No faculty profile is linked to your account (staff ID{" "}
+                    {user?.identifier}). Please ask an admin to check it.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {viewType === "course" && canEditTimetable && (
               <FacultyLegend
-                legend={legend}
+                legend={legendForUi}
                 faculties={faculties}
                 availableSubjects={availableSubjects}
                 courseId={currentCourse?._id || currentCourse?.id}
@@ -1194,19 +1634,22 @@ export default function Dashboard() {
                 onDrop={handleLegendDrop}
                 selectedBlock={selectedBlock}
                 onSelectBlock={setSelectedBlock}
+                canManage={canManageCourses}
               />
             )}
           </div>
 
-          {viewType === "course" && (
+          {(viewType === "course" || (viewType === "faculty" && isStaff)) && (
             <RightPanel
-              facultyCards={facultyCards}
+              facultyCards={rightFacultyCards}
               venueCards={venueCards}
               days={days}
               periods={periods}
               courses={courses}
               faculties={faculties}
               venues={venues}
+              showFaculty={!isStudent}
+              readOnly={!canEditTimetable || viewType !== "course"}
               onDropBlock={handleVenueDrop}
               onVenueCellClick={handleVenueCellClick}
             />
@@ -1217,7 +1660,7 @@ export default function Dashboard() {
       {/* MODAL */}
 
       <EditClassModal
-        open={Boolean(modalState)}
+        open={canEditTimetable && Boolean(modalState)}
         initial={modalState}
         course={course}
         courses={courses}
@@ -1254,6 +1697,19 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ADMIN: auto-generate the session's timetable */}
+      {canManageCourses && (
+        <GenerateTimetable
+          open={generateOpen}
+          onClose={() => setGenerateOpen(false)}
+          sessionId={currentCourse?.session?._id || currentCourse?.session}
+          sessionLabel={currentCourse?.session?.sessionId}
+          days={DAYS}
+          periodIds={PERIODS.map((period) => period.id)}
+          onDone={reloadDashboard}
+        />
+      )}
+
       {/* FACULTY / VENUE DOWNLOAD: choose whose timetables to include */}
       {pickerOpen && (viewType === "faculty" || viewType === "venue") && (
         <PrintPicker
@@ -1279,15 +1735,8 @@ export default function Dashboard() {
             <section key={card.id} data-print-area className={styles.printPage}>
               <div className={styles.printHeader}>
                 <div>
-                  <h1>
-                    {viewType === "faculty"
-                      ? "Faculty Timetable"
-                      : "Venue Timetable"}
-                  </h1>
-                  <p>
-                    {card.title}
-                    {card.subtitle ? ` · ${card.subtitle}` : ""}
-                  </p>
+                  <h1>{card.heading}</h1>
+                  {card.subtitle && <p>{card.subtitle}</p>}
                 </div>
 
                 <p>
@@ -1302,6 +1751,7 @@ export default function Dashboard() {
                 days={DAYS}
                 periods={PERIODS}
                 variant={viewType}
+                readOnly
                 courses={courses}
                 faculties={faculties}
                 venues={venues}
@@ -1313,7 +1763,7 @@ export default function Dashboard() {
 
       {/* PRINT: only the [data-print-area] block (course timetable) prints */}
       <style media="print">{`
-        @page { size: A4 landscape; margin: 10mm; }
+        @page { size: A4 ${viewType === "course" ? "portrait" : "landscape"}; margin: 10mm; }
         html, body { background: #fff !important; }
         body *:not(:has([data-print-area])):not([data-print-area]):not([data-print-area] *) {
           display: none !important;

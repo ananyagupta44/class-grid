@@ -11,13 +11,13 @@ import restrictTo from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create subject - Admin only
+// Create subject — admin only
 router.post("/", protect, restrictTo("admin"), createSubject);
 
-// Get all subjects
-router.get("/", getSubjects);
+// Get all subjects — any logged-in user
+router.get("/", protect, getSubjects);
 
-// Get single subject
-router.get("/:id", getSubjectById);
+// Get single subject — any logged-in user
+router.get("/:id", protect, getSubjectById);
 
 export default router;

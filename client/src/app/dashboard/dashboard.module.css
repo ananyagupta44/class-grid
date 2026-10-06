@@ -567,7 +567,128 @@
    PRINT — only the course timetable
 ========================= */
 
-.printHeader {
+.printHeader,
+.printInstitute {
+  display: none;
+}
+
+/* =========================
+   COURSE RAIL + CONTINUOUS FEED
+========================= */
+
+.courseFeedLayout {
+  width: 100%;
+  display: grid;
+  /* rail is only as wide as the longest course code */
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+/* left rail: every course, current one highlighted */
+.courseRail {
+  height: var(--feed-h);
+  min-width: 2.6rem;
+  max-width: 5.5rem;
+  box-sizing: border-box;
+  padding: 0.3rem 0.2rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--parchment-card);
+  box-shadow: var(--shadow-card);
+  scrollbar-width: none; /* the list is short; the active item is kept in view */
+}
+
+.courseRail::-webkit-scrollbar {
+  display: none;
+}
+
+.courseRail ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.railItem {
+  width: 100%;
+  display: block;
+  padding: 0.5rem 0.3rem;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.railItem:hover {
+  background: #fdf3e2;
+}
+
+.railItem:focus-visible {
+  outline: 2px solid var(--marigold-dark);
+  outline-offset: -2px;
+}
+
+.railItemActive,
+.railItemActive:hover {
+  border-left-color: var(--marigold);
+  background: #fdf3e2;
+  color: var(--marigold-dark);
+}
+
+/* the feed: one course timetable per "page", scrolls and snaps */
+.feed {
+  position: relative; /* section.offsetTop is measured from here */
+  height: var(--feed-h);
+  overflow-y: auto;
+  scroll-snap-type: y proximity;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 43, 38, 0.3) transparent;
+  border-radius: var(--radius-md);
+}
+
+.feed:focus-visible {
+  outline: 2px solid var(--marigold);
+  outline-offset: 2px;
+}
+
+.feedSection {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-bottom: 0.6rem;
+  scroll-snap-align: start;
+}
+
+.feedTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0 0.15rem 0.4rem;
+  color: var(--ink);
+}
+
+.feedTitle strong {
+  font-size: 1rem;
+}
+
+.feedTitle span {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+/* course legend (under the timetable) — only visible when printing */
+.printLegend {
   display: none;
 }
 
@@ -580,6 +701,27 @@
   /* the two-column layout collapses: only the timetable column prints */
   .mainRow {
     display: block !important;
+  }
+
+  /* the scrolling feed prints as a plain block: just the current course */
+  .courseFeedLayout {
+    display: block;
+  }
+
+  .courseRail,
+  .feedTitle {
+    display: none !important;
+  }
+
+  .feed {
+    height: auto;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .feedSection {
+    min-height: 0;
+    padding: 0;
   }
 
   .gridCol,
@@ -598,6 +740,28 @@
     page-break-before: always;
   }
 
+  /* institute name, centred at the very top of the course print */
+  .printInstitute {
+    display: block;
+    margin-bottom: 4mm;
+    text-align: center;
+    color: #111;
+  }
+
+  .printInstitute h2 {
+    margin: 0;
+    font-size: 15pt;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+
+  .printInstitute p {
+    margin: 0.5mm 0 0;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
   .printHeader {
     display: flex;
     align-items: flex-end;
@@ -611,7 +775,8 @@
 
   .printHeader h1 {
     margin: 0;
-    font-size: 20pt;
+    font-size: 24pt;
+    line-height: 1.1;
   }
 
   .printHeader p {
@@ -626,4 +791,77 @@
   .warningOverlay {
     display: none !important;
   }
+
+  .printLegend {
+    display: table;
+    width: 100%;
+    margin-top: 6mm;
+    border-collapse: collapse;
+    border: 1.5px solid #222;
+    color: #111;
+    font-size: 8.5pt;
+    break-inside: avoid;
+  }
+
+  .printLegend caption {
+    caption-side: top;
+    padding: 1.5mm;
+    border: 1.5px solid #222;
+    border-bottom: none;
+    background: #efe8d6;
+    font-size: 9pt;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .printLegend th,
+  .printLegend td {
+    padding: 1.2mm 2mm;
+    border: 1px solid #555;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .printLegend th {
+    background: #f6f1e3;
+    font-weight: 700;
+  }
+
+  /* S.No. / subject code / faculty code stay narrow, names get the room */
+  .printLegend th:nth-child(1),
+  .printLegend td:nth-child(1) {
+    width: 11mm;
+    text-align: center;
+  }
+
+  .printLegend th:nth-child(2),
+  .printLegend td:nth-child(2) {
+    width: 24mm;
+  }
+
+  .printLegend th:nth-child(5),
+  .printLegend td:nth-child(5) {
+    width: 20mm;
+  }
+
+  .printLegend tr {
+    break-inside: avoid;
+  }
+}
+
+/* STAFF — "my timetable" card on the faculty tab */
+.myTimetable {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--parchment-card);
+  box-shadow: var(--shadow-card);
+}
+
+.myTimetable .venueHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
 }

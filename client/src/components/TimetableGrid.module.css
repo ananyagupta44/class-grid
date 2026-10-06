@@ -37,7 +37,7 @@
   background: var(--parchment-card);
 
   min-height: 3rem;
-  min-width: 5rem;
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,7 +50,6 @@
   color: var(--ink-muted);
 
   border-bottom: 1px solid var(--line);
-  border-right: 1px solid var(--line);
 }
 
 .periodHeader {
@@ -88,10 +87,10 @@
 
   display: flex;
   align-items: center;
-  min-width: 5rem;
+
   padding: 0.45rem;
 
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
 
@@ -100,7 +99,6 @@
   background: var(--parchment);
 
   border-top: 1px solid var(--line);
-  border-right: 1px solid var(--line);
 }
 
 .slotCell {
@@ -119,6 +117,13 @@
 
 .slotCell:hover {
   background: rgba(232, 163, 61, 0.05);
+}
+
+/* view-only grids (students, faculty / venue overviews) */
+.readOnlyCell,
+.readOnlyCell:hover {
+  cursor: default;
+  background: transparent;
 }
 
 .addHint {
@@ -270,5 +275,32 @@
 
   .todayRow .slotCell {
     background: transparent;
+  }
+}
+
+/* portrait course print: 9 periods must fit a 190mm-wide page */
+@media print {
+  .printCompact .headerRow,
+  .printCompact .dayRow {
+    grid-template-columns: 17mm repeat(var(--periods), minmax(0, 1fr)) !important;
+  }
+
+  .printCompact .corner,
+  .printCompact .periodHeader {
+    min-height: 10mm;
+    padding: 1mm;
+    font-size: 7pt;
+    line-height: 1.2;
+  }
+
+  .printCompact .dayCell {
+    min-height: 22mm;
+    padding: 1mm;
+    font-size: 7pt;
+  }
+
+  .printCompact .slotCell {
+    min-height: 22mm;
+    padding: 0.5mm;
   }
 }

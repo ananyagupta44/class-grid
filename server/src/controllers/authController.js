@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 
+const VALID_ROLES = ["student", "admin", "staff"];
+
 // Helper — strip password before sending user back
 function sanitize(user) {
   const obj = user.toObject ? user.toObject() : user;
@@ -10,9 +12,15 @@ function sanitize(user) {
   return safe;
 }
 
+/*
+ * PUBLIC SELF-REGISTRATION — students only.
+ *
+ * The role is NEVER read from the request body here. Before, anyone could
+ * POST { role: "admin" } and give themselves full access.
+ */
 async function register(req, res) {
   try {
-    const { name, email, identifier, password, role } = req.body;
+    const { name, email, identifier, password } = req.body;
 
     if (!name || !email || !identifier || !password) {
       return res.status(400).json({
@@ -37,7 +45,7 @@ async function register(req, res) {
       email,
       identifier,
       password: hashedPassword,
-      role: role || "student",
+      role: "student",
     });
 
     const token = generateToken(user);
@@ -51,6 +59,57 @@ async function register(req, res) {
 
     return res.status(500).json({
       message: "Something went wrong during registration",
+    });
+  }
+}
+
+/*
+ * ADMIN-ONLY — create a staff / admin / student account with a chosen role.
+ * Route: POST /auth/users  (protect + restrictTo("admin"))
+ */
+async function createUser(req, res) {
+  try {
+    const { name, email, identifier, password, role } = req.body;
+
+    if (!name || !email || !identifier || !password) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: `Role must be one of: ${VALID_ROLES.join(", ")}`,
+      });
+    }
+
+    const existing = await User.findOne({
+      $or: [{ email }, { identifier }],
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        message: "Email or identifier already in use",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      identifier,
+      password: hashedPassword,
+      role,
+    });
+
+    // no token here: the admin stays logged in as themselves
+    return res.status(201).json({ user: sanitize(user) });
+  } catch (err) {
+    console.error("Create user error:", err);
+
+    return res.status(500).json({
+      message: "Something went wrong while creating the user",
     });
   }
 }
@@ -121,4 +180,4 @@ async function me(req, res) {
   }
 }
 
-export { register, login, me };
+export { register, createUser, login, me };

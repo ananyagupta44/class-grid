@@ -6,24 +6,29 @@
  * Domain   : (day, startPeriod, room)
  * Hard     : teacher / room / section double-booking, room capacity, room type,
  *            lab contiguity (same room, consecutive periods, same day), working days/periods,
- *            faculty weekly cap, blocks never span a break
- * Soft     : gaps, teacher consecutive load, capacity fit, room balance, lab room category
+ *            faculty weekly cap, blocks never span a break,
+ *            students get a free period (lunch) after maxConsecutiveSection back-to-back classes
+ * Soft     : gaps, teacher consecutive load, capacity fit, room balance, lab room category,
+ *            earlier start (morning preferred when everything else ties)
  */
 
 const DEFAULTS = {
   days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-  periods: 10, // P1..P10
-  noSpanAfter: [], // e.g. [4] => a lab block cannot run P4 -> P5 (lunch)
+  periods: 9, // periods per day (overridden by periodIds.length when given)
+  periodIds: null, // ids your app uses, in order, e.g. ["p1", ..., "p9"]
+  noSpanAfter: [], // e.g. [4] => a lab block cannot run 4th -> 5th period (lunch)
   labRoomPattern: /lab/i, // room.type matching this = lab room, everything else = classroom
-  maxLabBlock: 4, // lab hours above this get split into several blocks
+  maxLabBlock: 3, // lab hours above this get split into several blocks (manual scheduling also caps labs at 3)
   maxSameSubjectPerDay: 1, // lecture/tutorial periods of one subject per section per day
   maxConsecutiveTeaching: 2, // 3+ consecutive periods for a teacher is penalised
+  maxConsecutiveSection: 3, // students get a free period (lunch) after this many back-to-back classes; null = off
   weights: {
     gap: 5,
     consecutive: 4,
     capacityFit: 2,
     roomBalance: 1,
     categoryMismatch: 3,
+    earliness: 0.5, // cost per period of delay: prefers morning starts when all else ties
   },
   attempts: 5, // restarts with different tie-breaking; best soft cost wins
   maxNodes: 20000, // search budget per attempt
@@ -118,24 +123,35 @@ function preflight(units, rooms, facById, cfg) {
   const label = (u) =>
     `${u.courses[0].slug || u.courses[0].courseId} / ${u.subject.subjectId || u.subject.name}`;
   const slots = cfg.days.length * cfg.periods;
+  const k = cfg.maxConsecutiveSection;
+  // most classes a section can hold per week while keeping a free period after every k back-to-back classes
+  const secSlots = k
+    ? cfg.days.length * (cfg.periods - Math.floor(cfg.periods / (k + 1)))
+    : slots;
   const secLoad = new Map(),
     facLoad = new Map();
 
   for (const u of units) {
+    if (!u.faculty) errors.push(`No faculty assigned to ${label(u)}`);
     if (!u.rooms.length)
       errors.push(
         `No ${u.isLab ? "lab" : "classroom"} with capacity >= ${u.size} for ${label(u)}`,
       );
     if (u.duration > cfg.periods)
       errors.push(`Block longer than a day: ${label(u)}`);
+    if (k && u.duration > k)
+      errors.push(
+        `Lab block of ${u.duration} periods is longer than maxConsecutiveSection (${k}): ${label(u)}`,
+      );
     for (const cid of u.courseIds)
       secLoad.set(cid, (secLoad.get(cid) || 0) + u.duration);
-    facLoad.set(u.facultyId, (facLoad.get(u.facultyId) || 0) + u.duration);
+    if (u.faculty)
+      facLoad.set(u.facultyId, (facLoad.get(u.facultyId) || 0) + u.duration);
   }
   for (const [cid, n] of secLoad)
-    if (n > slots)
+    if (n > secSlots)
       errors.push(
-        `Section ${cid} needs ${n} periods but only ${slots} exist per week`,
+        `Section ${cid} needs ${n} periods but only ${secSlots} fit per week with a lunch gap`,
       );
   for (const [fid, n] of facLoad) {
     const f = facById.get(fid);
@@ -152,7 +168,7 @@ function preflight(units, rooms, facById, cfg) {
         `${f.name} needs ${n} periods but only ${slots} exist per week`,
       );
   }
-  return { errors, warnings, label };
+  return { errors: [...new Set(errors)], warnings, label };
 }
 
 // ---------- 3. one search attempt ----------
@@ -160,6 +176,7 @@ function runAttempt(ctx, seed) {
   const { cfg, units, existingEntries, facCap } = ctx;
   const rng = mulberry32(seed);
   const nDays = cfg.days.length;
+  const idToIndex = new Map(cfg.periodIds.map((id, i) => [id, i + 1]));
   const facDay = new Map(),
     secDay = new Map(),
     roomDay = new Map();
@@ -185,7 +202,9 @@ function runAttempt(ctx, seed) {
   // seed already-existing timetable (other sessions) so we never clash with it
   for (const en of existingEntries) {
     const d = cfg.days.indexOf(en.day);
-    const s = parseInt(String(en.periodId).replace(/\D/g, ""), 10);
+    const s =
+      idToIndex.get(String(en.periodId)) ||
+      parseInt(String(en.periodId).replace(/\D/g, ""), 10);
     if (d < 0 || !s) continue;
     const e = s + (en.duration || 1) - 1;
     mark(facDay, `${en.faculty}|${d}`, s, e, true);
@@ -211,13 +230,19 @@ function runAttempt(ctx, seed) {
     for (const cid of u.courseIds) {
       // minimise gaps
       const set = peek(secDay, `${cid}|${d}`);
-      c += w.gap * (gapsWith(set, s, e) - gapsOf(set));
+      // one free period per day is the lunch break, not a defect
+      const free = cfg.maxConsecutiveSection ? 1 : 0;
+      c +=
+        w.gap *
+        (Math.max(0, gapsWith(set, s, e) - free) -
+          Math.max(0, gapsOf(set) - free));
     }
     const run = runLength(peek(facDay, `${u.facultyId}|${d}`), s, e); // teacher load
     if (run > cfg.maxConsecutiveTeaching)
       c += w.consecutive * (run - cfg.maxConsecutiveTeaching);
     c += (w.capacityFit * (r.capacity - u.size)) / r.capacity; // capacity fit
     c += (w.roomBalance * (roomLoad.get(r.id) || 0)) / (assigned.length + 1); // room balance
+    c += w.earliness * (s - 1); // earlier start preferred (otherwise ties are random)
     if (
       u.isLab &&
       u.subject.category &&
@@ -248,6 +273,15 @@ function runAttempt(ctx, seed) {
         if (anyIn(fSet, s, e)) continue; // teacher double-booking
         if (u.courseIds.some((cid) => anyIn(peek(secDay, `${cid}|${d}`), s, e)))
           continue; // section
+        if (
+          cfg.maxConsecutiveSection &&
+          u.courseIds.some(
+            (cid) =>
+              runLength(peek(secDay, `${cid}|${d}`), s, e) >
+              cfg.maxConsecutiveSection,
+          )
+        )
+          continue; // students need a lunch gap
         for (const r of u.rooms) {
           if (anyIn(peek(roomDay, `${r.id}|${d}`), s, e)) continue; // room double-booking
           out.push({ d, s, r, cost: costOf(u, d, s, e, r) + rng() * 0.01 });
@@ -325,6 +359,12 @@ function generateTimetable(data, userConfig = {}) {
     ...userConfig,
     weights: { ...DEFAULTS.weights, ...userConfig.weights },
   };
+  cfg.periodIds =
+    Array.isArray(cfg.periodIds) && cfg.periodIds.length
+      ? cfg.periodIds.map(String)
+      : Array.from({ length: cfg.periods }, (_, i) => `p${i + 1}`);
+  cfg.periods = cfg.periodIds.length;
+
   const { courses, subjects, faculties, existingEntries = [] } = data;
   const rooms = data.rooms.map((r) => ({ ...r, id: String(r._id) }));
   const subjById = new Map(subjects.map((s) => [String(s._id), s]));
@@ -385,14 +425,14 @@ function generateTimetable(data, userConfig = {}) {
         session: c.session,
         venue: v.r._id,
         day: cfg.days[v.d],
-        periodId: `P${v.s}`,
+        periodId: cfg.periodIds[v.s - 1],
         duration: u.duration,
       })),
     )
     .sort(
       (a, b) =>
         cfg.days.indexOf(a.day) - cfg.days.indexOf(b.day) ||
-        parseInt(a.periodId.slice(1)) - parseInt(b.periodId.slice(1)),
+        cfg.periodIds.indexOf(a.periodId) - cfg.periodIds.indexOf(b.periodId),
     );
 
   return {
