@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { can, normalizeRole } from "./permissions";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const STORAGE_KEYS = ["token", "user", "userId", "role"];
@@ -112,7 +114,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(() => {
-    const role = user?.role || null;
+    const role = normalizeRole(user?.role);
+
+    const allow = (permission) => can(role, permission);
 
     return {
       user,
@@ -120,15 +124,30 @@ export function AuthProvider({ children }) {
       ready,
       isLoggedIn: Boolean(user),
 
-      isAdmin: role === "admin",
-      isStaff: role === "staff",
+      can: allow,
+
       isStudent: role === "student",
 
-      // admin + staff may edit timetable entries
-      canEditTimetable: role === "admin" || role === "staff",
+      // ---- viewing ----
+      canViewOwnFaculty: allow("viewOwnFacultyTT"),
+      canViewAllFaculty: allow("viewAllFacultyTT"),
 
-      // only admin may add/assign subjects and use the Home page
-      canManageCourses: role === "admin",
+      // ---- department setup (dept. in-charge and above) ----
+      canAccessHome: allow("accessHome"),
+      canAddCourse: allow("addCourse"),
+      canAddFaculty: allow("addFaculty"),
+      canAddSubjectToCourse: allow("addSubjectToCourse"),
+      canAssignFaculty: allow("assignFaculty"),
+
+      // ---- timetable work (admin / TT team and above) ----
+      canEditTimetable: allow("editTimetable"),
+      canGenerate: allow("generateTimetable"),
+
+      // ---- super admin only ----
+      canAddSubject: allow("addSubject"),
+      canAddRoom: allow("addRoom"),
+      canAddSession: allow("addSession"),
+      canManageAccounts: allow("manageAccounts"),
 
       login,
       logout,

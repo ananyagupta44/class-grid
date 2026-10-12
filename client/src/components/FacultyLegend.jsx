@@ -15,6 +15,7 @@ export default function FacultyLegend({
   selectedBlock = null,
   onSelectBlock,
   canManage = true, // false → no "+ Add Subject" and faculty can't be reassigned
+  canPlace = true, // false → classes can't be dragged / placed (view + setup only)
 }) {
   const [showSubjects, setShowSubjects] = useState(false);
 
@@ -80,7 +81,7 @@ export default function FacultyLegend({
         </div>
 
         <div className={styles.headerActions}>
-          {legend.length > 0 && (
+          {canPlace && legend.length > 0 && (
             <button
               type="button"
               className={styles.addClass}
@@ -172,7 +173,16 @@ export default function FacultyLegend({
               </div>
 
               <div className={styles.blockRow}>
-                {remaining.length ? (
+                {!canPlace ? (
+                  // setup-only view: no dragging, just how much is left
+                  <span className={styles.done}>
+                    {remaining.length
+                      ? `${remaining.length} class block${
+                          remaining.length > 1 ? "s" : ""
+                        } still to schedule`
+                      : "All classes scheduled"}
+                  </span>
+                ) : remaining.length ? (
                   remaining.map((block) => {
                     const payload = buildPayload(item, block);
                     const selected = isSelected(payload);

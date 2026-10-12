@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true, // roll number for students, staff ID for admin/staff
+      trim: true, // roll number for students, staff ID for everyone else
     },
 
     password: {
@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["student", "admin", "staff"],
+      enum: ["student", "faculty", "dept_incharge", "admin", "super_admin"],
       default: "student",
     },
   },

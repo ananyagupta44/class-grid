@@ -18,37 +18,45 @@ function matches(pathname, base) {
 
 /*
  * Route rules
- *   /home       → admin only
- *   /dashboard  → any logged-in user
+ *   /home/accounts  → super admin only
+ *   /home           → dept. in-charge and above
+ *   /dashboard      → any logged-in user
  *   everything else is public
  */
 function RouteGuard({ children }) {
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const { user, role, ready } = useAuth();
+  const { user, ready, canAccessHome, canManageAccounts } = useAuth();
   const { openLogin } = useLoginSidebar();
 
-  const adminOnly = matches(pathname, "/home");
-  const needsLogin = adminOnly || matches(pathname, "/dashboard");
+  const accountsPage = matches(pathname, "/home/accounts");
+  const homePage = matches(pathname, "/home");
+  const needsLogin = homePage || matches(pathname, "/dashboard");
 
-  const allowed =
-    !needsLogin || (ready && Boolean(user) && (!adminOnly || role === "admin"));
+  const permitted = accountsPage
+    ? canManageAccounts
+    : homePage
+      ? canAccessHome
+      : true;
+
+  const allowed = !needsLogin || (ready && Boolean(user) && permitted);
 
   useEffect(() => {
     if (!needsLogin || !ready) return;
 
     if (!user) {
       router.replace("/");
-      openLogin(adminOnly ? "admin" : "student");
+      openLogin(homePage ? "admin" : "student");
       return;
     }
 
-    if (adminOnly && role !== "admin") {
-      router.replace("/dashboard");
+    if (!permitted) {
+      // not allowed here → the closest page they ARE allowed to open
+      router.replace(accountsPage && canAccessHome ? "/home" : "/dashboard");
     }
     // openLogin is recreated every render; intentionally not a dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsLogin, adminOnly, ready, user, role, router]);
+  }, [needsLogin, homePage, accountsPage, ready, user, permitted, router]);
 
   return allowed ? children : null;
 }

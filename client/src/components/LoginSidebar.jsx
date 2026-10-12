@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../context/AuthContext";
+import { can } from "../context/permissions";
 import { useLoginSidebar } from "../context/LoginSidebarContext";
 
 import styles from "./LoginSidebar.module.css";
@@ -134,10 +135,10 @@ export default function LoginSidebar() {
       closeLogin();
 
       /*
-       * admin             → Home (management) page
-       * staff / student   → Dashboard
+       * dept. in-charge, admin, super admin → Home (management) page
+       * student, faculty                    → Dashboard
        */
-      if (data.user?.role === "admin") {
+      if (can(data.user?.role, "accessHome")) {
         router.push("/home");
       } else {
         router.push("/dashboard");

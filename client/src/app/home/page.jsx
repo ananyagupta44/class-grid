@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../context/AuthContext";
+import MasterTable from "./MasterTable";
 import styles from "./page.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -46,6 +48,17 @@ async function apiRequest(endpoint, options = {}) {
 export default function HomePage() {
   const router = useRouter();
 
+  // what this role may do (see context/permissions.js)
+  const {
+    canAddCourse,
+    canAddFaculty,
+    canAddSubject,
+    canAddRoom,
+    canAddSession,
+    canAssignFaculty,
+    canAddSubjectToCourse,
+  } = useAuth();
+
   // ------------------------------------------------
   // Data
   // ------------------------------------------------
@@ -55,6 +68,10 @@ export default function HomePage() {
   const [subjects, setSubjects] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [venues, setVenues] = useState([]);
+
+  // scheduled classes of the selected session (fills the master table's
+  // "Lab venue" and "Combined class" columns)
+  const [entries, setEntries] = useState([]);
 
   // ------------------------------------------------
   // Current session
@@ -149,6 +166,90 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // ==================================================
+  // LIGHT REFRESH (no full-page loading screen)
+  // ==================================================
+
+  async function loadEntries(sessionId) {
+    try {
+      const response = await apiRequest(`/timetable?sessionId=${sessionId}`);
+
+      setEntries(response?.entries || []);
+    } catch {
+      // the master table still works without these two columns
+      setEntries([]);
+    }
+  }
+
+  async function refreshData() {
+    try {
+      const [
+        sessionsResponse,
+        coursesResponse,
+        subjectsResponse,
+        facultyResponse,
+        roomsResponse,
+      ] = await Promise.all([
+        apiRequest("/sessions"),
+        apiRequest("/courses"),
+        apiRequest("/subjects"),
+        apiRequest("/faculty"),
+        apiRequest("/rooms"),
+      ]);
+
+      const loadedSessions = sessionsResponse?.sessions || [];
+
+      setSessions(loadedSessions);
+      setCourses(coursesResponse?.courses || []);
+      setSubjects(subjectsResponse?.subjects || []);
+      setFaculty(facultyResponse?.faculty || []);
+      setVenues(roomsResponse?.rooms || []);
+
+      // keep the selected session in step with the fresh data
+      setSelectedSession((current) =>
+        current
+          ? loadedSessions.find((item) => item._id === current._id) || current
+          : current,
+      );
+
+      if (selectedSession?._id) await loadEntries(selectedSession._id);
+    } catch (err) {
+      setError(err.message || "Failed to refresh data");
+    }
+  }
+
+  useEffect(() => {
+    if (selectedSession?._id) {
+      loadEntries(selectedSession._id);
+    } else {
+      setEntries([]);
+    }
+  }, [selectedSession?._id]);
+
+  // ==================================================
+  // MASTER TABLE ACTIONS
+  // ==================================================
+
+  // add an existing subject to a course
+  async function addSubjectToCourse(course, subjectDbId) {
+    await apiRequest(`/courses/${course._id}/subjects`, {
+      method: "POST",
+      body: JSON.stringify({ subjectId: subjectDbId }),
+    });
+
+    await refreshData();
+  }
+
+  // assign (or change) the faculty of a course's subject
+  async function assignFacultyToSubject(course, subjectDbId, facultyDbId) {
+    await apiRequest(`/courses/${course._id}/subjects/${subjectDbId}/faculty`, {
+      method: "PATCH",
+      body: JSON.stringify({ facultyId: facultyDbId }),
+    });
+
+    await refreshData();
   }
 
   // ==================================================
@@ -326,7 +427,7 @@ export default function HomePage() {
             description="Create course sections and assign their subjects."
             count={sessionCourses.length}
             actionLabel="+ Add course"
-            onAdd={() => openCreateModal("course")}
+            onAdd={canAddCourse ? () => openCreateModal("course") : undefined}
           >
             {sessionCourses.length === 0 ? (
               <EmptyState text="No courses in this session yet." />
@@ -352,7 +453,7 @@ export default function HomePage() {
             description="Create reusable subjects for your courses."
             count={subjects.length}
             actionLabel="+ Add subject"
-            onAdd={() => openCreateModal("subject")}
+            onAdd={canAddSubject ? () => openCreateModal("subject") : undefined}
           >
             {subjects.length === 0 ? (
               <EmptyState text="No subjects created yet." />
@@ -377,7 +478,7 @@ export default function HomePage() {
             description="Manage faculty members available for scheduling."
             count={faculty.length}
             actionLabel="+ Add faculty"
-            onAdd={() => openCreateModal("faculty")}
+            onAdd={canAddFaculty ? () => openCreateModal("faculty") : undefined}
           >
             {faculty.length === 0 ? (
               <EmptyState text="No faculty added yet." />
@@ -402,7 +503,7 @@ export default function HomePage() {
             description="Manage classrooms and labs used by the timetable."
             count={venues.length}
             actionLabel="+ Add venue"
-            onAdd={() => openCreateModal("venue")}
+            onAdd={canAddRoom ? () => openCreateModal("venue") : undefined}
           >
             {venues.length === 0 ? (
               <EmptyState text="No venues added yet." />
@@ -420,6 +521,31 @@ export default function HomePage() {
       )}
 
       {/* ==========================================
+          MASTER TABLE
+      =========================================== */}
+
+      {selectedSession && (
+        <MasterTable
+          session={selectedSession}
+          courses={sessionCourses}
+          subjects={subjects}
+          faculty={faculty}
+          entries={entries}
+          canAddCourse={canAddCourse}
+          canAddFaculty={canAddFaculty}
+          canAddSubject={canAddSubject}
+          canAddSubjectToCourse={canAddSubjectToCourse}
+          canAssignFaculty={canAssignFaculty}
+          onAddCourse={() => openCreateModal("course")}
+          onAddFaculty={() => openCreateModal("faculty")}
+          onAddSubject={() => openCreateModal("subject")}
+          onAddSubjectToCourse={addSubjectToCourse}
+          onAssignFaculty={assignFacultyToSubject}
+          onOpenCourse={openCourse}
+        />
+      )}
+
+      {/* ==========================================
           SESSION MODAL
       =========================================== */}
 
@@ -429,6 +555,7 @@ export default function HomePage() {
           selectedSession={selectedSession}
           onSelect={selectSession}
           onCreate={handleCreateSession}
+          canCreate={canAddSession}
           canClose={Boolean(selectedSession)}
           onClose={() => setShowSessionModal(false)}
         />
@@ -445,7 +572,7 @@ export default function HomePage() {
           subjects={subjects}
           faculty={faculty}
           onClose={closeModal}
-          onSaved={loadData}
+          onSaved={refreshData}
         />
       )}
 
@@ -453,7 +580,7 @@ export default function HomePage() {
         <SubjectModal
           subject={editingItem}
           onClose={closeModal}
-          onSaved={loadData}
+          onSaved={refreshData}
         />
       )}
 
@@ -461,7 +588,7 @@ export default function HomePage() {
         <FacultyModal
           faculty={editingItem}
           onClose={closeModal}
-          onSaved={loadData}
+          onSaved={refreshData}
         />
       )}
 
@@ -469,7 +596,7 @@ export default function HomePage() {
         <VenueModal
           venue={editingItem}
           onClose={closeModal}
-          onSaved={loadData}
+          onSaved={refreshData}
         />
       )}
     </main>
@@ -504,9 +631,11 @@ function ManagementColumn({
           <p>{description}</p>
         </div>
 
-        <button type="button" className={styles.addButton} onClick={onAdd}>
-          {actionLabel}
-        </button>
+        {onAdd && (
+          <button type="button" className={styles.addButton} onClick={onAdd}>
+            {actionLabel}
+          </button>
+        )}
       </div>
 
       <div className={styles.items}>{children}</div>
@@ -649,10 +778,13 @@ function SessionModal({
   selectedSession,
   onSelect,
   onCreate,
+  canCreate = true,
   canClose,
   onClose,
 }) {
-  const [mode, setMode] = useState(sessions.length > 0 ? "select" : "create");
+  const [mode, setMode] = useState(
+    sessions.length > 0 || !canCreate ? "select" : "create",
+  );
 
   const [sessionId, setSessionId] = useState("");
 
@@ -718,13 +850,15 @@ function SessionModal({
             </button>
           )}
 
-          <button
-            type="button"
-            className={mode === "create" ? styles.activeTab : ""}
-            onClick={() => setMode("create")}
-          >
-            Create new
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              className={mode === "create" ? styles.activeTab : ""}
+              onClick={() => setMode("create")}
+            >
+              Create new
+            </button>
+          )}
         </div>
 
         {mode === "select" && sessions.length > 0 && (
@@ -751,7 +885,14 @@ function SessionModal({
           </div>
         )}
 
-        {mode === "create" && (
+        {mode === "select" && sessions.length === 0 && (
+          <div className={styles.empty}>
+            No academic session exists yet. Please ask the super admin to create
+            one.
+          </div>
+        )}
+
+        {mode === "create" && canCreate && (
           <form className={styles.form} onSubmit={submitCreate}>
             <label>
               Session ID

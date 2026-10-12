@@ -8,7 +8,7 @@ import styles from "./Navbar.module.css";
 
 export default function Navbar() {
   const { openLogin } = useLoginSidebar();
-  const { user, ready, isAdmin } = useAuth();
+  const { user, ready, canAccessHome, canManageAccounts } = useAuth();
 
   return (
     <header className={styles.header}>
@@ -21,7 +21,7 @@ export default function Navbar() {
           {/* only links the signed-in user is allowed to open */}
           {ready && user && (
             <nav className={styles.mainNav}>
-              {isAdmin && (
+              {canAccessHome && (
                 <Link href="/home" className={styles.link}>
                   Home
                 </Link>
@@ -31,7 +31,7 @@ export default function Navbar() {
                 Dashboard
               </Link>
 
-              {isAdmin && (
+              {canManageAccounts && (
                 <Link href="/home/accounts" className={styles.link}>
                   Accounts
                 </Link>

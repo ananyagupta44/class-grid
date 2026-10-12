@@ -1,23 +1,32 @@
-// usage: router.post("/something", protect, restrictTo("admin"), handler)
-//        router.put("/timetable/:id", protect, restrictTo("admin", "staff"), handler)
-//
-// Roles are compared case-insensitively. (The old version compared exactly,
-// so restrictTo("ADMIN") never matched the stored role "admin".)
+import { can, normalizeRole } from "../utils/permissions.js";
 
-const restrictTo = (...allowedRoles) => {
-  const allowed = allowedRoles.map((role) => String(role).toLowerCase());
+/*
+ * Preferred: ask for a PERMISSION (see utils/permissions.js)
+ *   router.post("/", protect, requirePermission("addCourse"), createCourse);
+ *
+ * Still available: ask for specific ROLES
+ *   router.get("/x", protect, restrictTo("admin", "super_admin"), handler);
+ */
 
-  return (req, res, next) => {
-    const role = String(req.user?.role || "").toLowerCase();
+const deny = (res) =>
+  res.status(403).json({ message: "You do not have permission to do this" });
 
-    if (!role || !allowed.includes(role)) {
-      return res
-        .status(403)
-        .json({ message: "You do not have permission to do this" });
+export const requirePermission = (permission) => (req, res, next) => {
+  if (!req.user || !can(req.user.role, permission)) return deny(res);
+
+  next();
+};
+
+const restrictTo =
+  (...allowedRoles) =>
+  (req, res, next) => {
+    const role = normalizeRole(req.user?.role);
+
+    if (!role || !allowedRoles.map(normalizeRole).includes(role)) {
+      return deny(res);
     }
 
     next();
   };
-};
 
 export default restrictTo;

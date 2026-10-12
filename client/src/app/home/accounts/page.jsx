@@ -35,10 +35,23 @@ function generatePassword(length = 10) {
   return Array.from(bytes, (n) => chars[n % chars.length]).join("");
 }
 
+// the four account types a super admin can create
+// (students sign themselves up on the Register page)
+const ACCOUNT_ROLES = [
+  ["faculty", "Faculty"],
+  ["dept_incharge", "Dept. In-charge"],
+  ["admin", "Admin (TT team)"],
+  ["super_admin", "Super Admin"],
+];
+
+// these roles view their own faculty timetable → their staff ID must equal
+// the faculty record's faculty ID
+const NEEDS_FACULTY_LINK = ["faculty", "dept_incharge"];
+
 const EMPTY = { name: "", email: "", identifier: "", password: "" };
 
 export default function AccountsPage() {
-  const [role, setRole] = useState("staff");
+  const [role, setRole] = useState("faculty");
   const [values, setValues] = useState(EMPTY);
   const [faculties, setFaculties] = useState([]);
   const [facultyKey, setFacultyKey] = useState("");
@@ -115,8 +128,7 @@ export default function AccountsPage() {
     if (!values.identifier.trim()) next.identifier = "Enter the staff ID.";
 
     if (!values.password) next.password = "Set a temporary password.";
-    else if (values.password.length < 8)
-      next.password = "Use at least 8 characters.";
+    else if (values.password.length < 8) next.password = "Use at least 8 characters.";
 
     return next;
   }
@@ -190,7 +202,9 @@ export default function AccountsPage() {
       {/* ===== SUCCESS ===== */}
       {created && (
         <section className={styles.success} role="status">
-          <h2>Account created for {created.name}</h2>
+          <h2>
+            Account created for {created.name}
+          </h2>
 
           <dl>
             <div>
@@ -205,8 +219,8 @@ export default function AccountsPage() {
           </dl>
 
           <p>
-            Save this now — the password can&apos;t be shown again. They log in
-            with <strong>Admin / Staff Login</strong>.
+            Save this now — the password can&apos;t be shown again.
+            They log in with <strong>Admin / Staff Login</strong>.
           </p>
 
           <div className={styles.successActions}>
@@ -237,15 +251,8 @@ export default function AccountsPage() {
             </div>
           )}
 
-          <div
-            className={styles.roles}
-            role="radiogroup"
-            aria-label="Account type"
-          >
-            {[
-              ["staff", "Faculty"],
-              ["admin", "Admin"],
-            ].map(([value, label]) => (
+          <div className={styles.roles} role="radiogroup" aria-label="Account type">
+            {ACCOUNT_ROLES.map(([value, label]) => (
               <button
                 key={value}
                 type="button"
@@ -259,7 +266,7 @@ export default function AccountsPage() {
             ))}
           </div>
 
-          {role === "staff" && facultyOptions.length > 0 && (
+          {NEEDS_FACULTY_LINK.includes(role) && facultyOptions.length > 0 && (
             <label className={styles.field}>
               <span>Link to faculty record</span>
 
@@ -277,8 +284,8 @@ export default function AccountsPage() {
               </select>
 
               <small className={styles.hint}>
-                The staff ID must equal the faculty ID — that is how the account
-                finds its own timetable.
+                The staff ID must equal the faculty ID — that is how the
+                account finds its own timetable.
               </small>
             </label>
           )}
@@ -351,9 +358,10 @@ export default function AccountsPage() {
           <button type="submit" className={styles.submit} disabled={loading}>
             {loading
               ? "Creating..."
-              : role === "admin"
-                ? "Create admin account"
-                : "Create faculty account"}
+              : `Create ${
+                  ACCOUNT_ROLES.find(([value]) => value === role)?.[1] ??
+                  "account"
+                } account`}
           </button>
         </form>
       )}

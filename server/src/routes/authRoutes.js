@@ -8,7 +8,7 @@ import {
 } from "../controllers/authController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ router.post("/login", login);
 // Any logged-in user
 router.get("/me", protect, me);
 
-// Admin only — create staff / admin accounts
-router.post("/users", protect, restrictTo("admin"), createUser);
+// Super admin — create accounts of any level
+router.post("/users", protect, requirePermission("manageAccounts"), createUser);
 
 export default router;

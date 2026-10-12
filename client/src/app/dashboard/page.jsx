@@ -14,6 +14,7 @@ import { withLabBlocks } from "../../components/legendBlocks";
 import EditClassModal from "../../components/EditClassModal";
 import { useTimetable } from "../../context/TimetableContext";
 import { useAuth } from "../../context/AuthContext";
+import useUiSound from "../../hooks/useUiSound";
 
 import { DAYS, PERIODS } from "../../context/TimetableContext";
 
@@ -289,6 +290,9 @@ export default function Dashboard() {
     feedRef.current = element;
     setFeedEl(element);
   }, []);
+
+  // Pop on clicks, soft bubble while the user scrolls (not when a click scrolls the feed)
+  useUiSound({ element: feedEl, clickOn: "[data-course-id]" });
 
   function scrollToCourse(id, behavior = "smooth") {
     const feed = feedRef.current;

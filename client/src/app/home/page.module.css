@@ -1266,3 +1266,368 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================================================
+   MASTER TABLE
+================================================== */
+
+.masterSection {
+  max-width: 1500px;
+  margin: 1.5rem auto 0;
+
+  background: rgba(253, 249, 239, 0.62);
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  overflow: hidden;
+}
+
+.masterHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  padding: 0.9rem 1rem;
+
+  border-bottom: 1px solid var(--line);
+
+  background: rgba(255, 252, 244, 0.68);
+}
+
+.masterIntro {
+  margin: 0.35rem 0 0;
+
+  font-size: 0.72rem;
+  line-height: 1.45;
+
+  color: var(--ink-muted);
+}
+
+.masterTools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.masterSearch {
+  width: 17rem;
+  box-sizing: border-box;
+
+  padding: 0.5rem 0.7rem;
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+
+  background: var(--parchment);
+  color: var(--ink);
+
+  font-size: 0.72rem;
+}
+
+.masterSearch:focus {
+  outline: none;
+  border-color: var(--marigold);
+}
+
+.masterAdd {
+  padding: 0.5rem 0.8rem;
+
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+
+  background: var(--ink);
+  color: var(--parchment);
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.masterAdd:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.masterAdd:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ----- messages ----- */
+
+.masterOk,
+.masterError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  margin: 0.7rem 1rem 0;
+  padding: 0.55rem 0.8rem;
+
+  border-radius: var(--radius-sm);
+
+  font-size: 0.74rem;
+}
+
+.masterOk {
+  border: 1px solid #b8d9c3;
+  background: #eaf6ee;
+  color: #1f5a37;
+}
+
+.masterError {
+  border: 1px solid #e3b4ad;
+  background: #fbeceb;
+  color: #b3392a;
+}
+
+.masterOk button,
+.masterError button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.masterEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.8rem;
+
+  min-height: 8rem;
+  padding: 1.5rem;
+
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+/* ----- the table ----- */
+
+.masterScroll {
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.masterTable {
+  width: 100%;
+  min-width: 1180px;
+
+  border-collapse: separate;
+  border-spacing: 0;
+
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.masterTable th,
+.masterTable td {
+  padding: 0.45rem 0.6rem;
+
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+
+  text-align: left;
+  vertical-align: middle;
+}
+
+.masterTable th:last-child,
+.masterTable td:last-child {
+  border-right: 0;
+}
+
+.masterTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+
+  background: #efe8d6;
+
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.masterTable tbody tr:hover td {
+  background: rgba(232, 163, 61, 0.06);
+}
+
+/* one block per course */
+
+.groupRow td,
+.groupRow:hover td {
+  background: #fdf3e2;
+
+  border-top: 2px solid var(--line);
+}
+
+.groupLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.groupName {
+  padding: 0.15rem 0.6rem;
+
+  border-radius: 999px;
+
+  background: var(--marigold);
+  color: var(--slate-dark, var(--ink));
+
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.groupMeta {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.groupOpen {
+  margin-left: auto;
+
+  border: 0;
+  background: transparent;
+
+  color: var(--marigold-dark, var(--marigold));
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.groupOpen:hover {
+  text-decoration: underline;
+}
+
+.totalRow td {
+  background: var(--parchment);
+  font-weight: 700;
+}
+
+.addRow td {
+  background: transparent;
+  border-bottom: 2px solid var(--line);
+}
+
+/* cells */
+
+.cellCenter {
+  text-align: center !important;
+}
+
+.cellMono {
+  font-family: "IBM Plex Mono", monospace;
+  white-space: nowrap;
+}
+
+.cellTitle {
+  min-width: 14rem;
+}
+
+.cellMuted {
+  color: var(--ink-muted);
+}
+
+.cellFaculty {
+  min-width: 12rem;
+}
+
+.cellFaculty small {
+  color: var(--ink-muted);
+  font-size: 0.66rem;
+}
+
+.facultyLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cellFaculty select,
+.addSubjectRow select {
+  max-width: 100%;
+
+  padding: 0.35rem 0.45rem;
+
+  border: 1px solid var(--marigold);
+  border-radius: var(--radius-sm);
+
+  background: var(--parchment);
+  color: var(--ink);
+
+  font-size: 0.72rem;
+}
+
+.cellPlus {
+  padding: 0.25rem 0.6rem;
+
+  border: 1px dashed var(--marigold);
+  border-radius: var(--radius-sm);
+
+  background: transparent;
+  color: var(--marigold-dark, var(--ink));
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.cellPlus:hover {
+  background: #fdf3e2;
+}
+
+.cellLink {
+  border: 0;
+  background: transparent;
+
+  color: var(--marigold-dark, var(--marigold));
+
+  font-size: 0.68rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.cellLink:hover {
+  text-decoration: underline;
+}
+
+.tagElective {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+
+  border-radius: 999px;
+
+  background: #fdf3e2;
+  border: 1px solid rgba(232, 163, 61, 0.45);
+
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--marigold-dark, var(--ink));
+}
+
+.addSubjectRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}

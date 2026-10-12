@@ -9,43 +9,42 @@ import {
 } from "../controllers/timetableController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
 /*
- * student → view only
- * staff   → view + edit timetable entries
- * admin   → view + edit timetable entries
+ * View   : any logged-in user
+ * Change : admin (TT team) and super admin
  */
 
-// View timetable — any logged-in user
 router.get("/", protect, getTimetable);
 
-// Add class — admin + staff
-router.post("/", protect, restrictTo("admin", "staff"), createTimetableEntry);
+router.post(
+  "/",
+  protect,
+  requirePermission("editTimetable"),
+  createTimetableEntry,
+);
 
-// Add combo class — admin + staff
 router.post(
   "/combo",
   protect,
-  restrictTo("admin", "staff"),
+  requirePermission("editTimetable"),
   createComboTimetableEntry,
 );
 
-// Edit / move class — admin + staff
 router.put(
   "/:id",
   protect,
-  restrictTo("admin", "staff"),
+  requirePermission("editTimetable"),
   updateTimetableEntry,
 );
 
-// Delete class — admin + staff
 router.delete(
   "/:id",
   protect,
-  restrictTo("admin", "staff"),
+  requirePermission("editTimetable"),
   deleteTimetableEntry,
 );
 

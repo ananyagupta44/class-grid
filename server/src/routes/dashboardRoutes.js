@@ -3,23 +3,36 @@ import express from "express";
 import { getDashboardData } from "../controllers/dashboardController.js";
 
 import protect from "../middleware/authMiddleware.js";
+import { can } from "../utils/permissions.js";
 
 const router = express.Router();
 
 /*
- * Students may only see course + venue timetables.
- * Remove the faculty data (and the admin-only subject list) from the
- * dashboard response before it is sent to them.
+ * Don't send people data they may not open:
+ *   - only the TT team (and super admin) get every faculty's timetable
+ *   - the subject picker is for people who can add subjects to a course
+ *   - students never need the faculty list
  */
-function trimForStudents(req, res, next) {
-  if (req.user?.role !== "student") return next();
+function trimByRole(req, res, next) {
+  const role = req.user?.role;
+
+  const drop = [];
+
+  if (!can(role, "viewAllFacultyTT")) drop.push("facultyTimetables");
+  if (!can(role, "addSubjectToCourse")) drop.push("availableSubjects");
+  if (!can(role, "viewOwnFacultyTT")) drop.push("faculties");
+
+  if (!drop.length) return next();
 
   const send = res.json.bind(res);
 
   res.json = (body) => {
     if (body && typeof body === "object" && !Array.isArray(body)) {
-      const { facultyTimetables, faculties, availableSubjects, ...rest } = body;
-      return send(rest);
+      const copy = { ...body };
+
+      drop.forEach((key) => delete copy[key]);
+
+      return send(copy);
     }
 
     return send(body);
@@ -29,6 +42,6 @@ function trimForStudents(req, res, next) {
 }
 
 // any logged-in user
-router.get("/:courseId", protect, trimForStudents, getDashboardData);
+router.get("/:courseId", protect, trimByRole, getDashboardData);
 
 export default router;

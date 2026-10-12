@@ -6,9 +6,12 @@ import { useAuth } from "../context/AuthContext";
 import styles from "./ProfileMenu.module.css";
 
 const ROLE_LABEL = {
-  admin: "Admin",
-  staff: "Faculty",
   student: "Student",
+  faculty: "Faculty",
+  dept_incharge: "Dept. In-charge",
+  admin: "Admin (TT team)",
+  super_admin: "Super Admin",
+  staff: "Faculty", // accounts made before the five levels
 };
 
 function initials(name = "") {

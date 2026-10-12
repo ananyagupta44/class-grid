@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
+import { ROLES } from "../utils/permissions.js";
 
-const VALID_ROLES = ["student", "admin", "staff"];
+const VALID_ROLES = ROLES;
 
 // Helper — strip password before sending user back
 function sanitize(user) {

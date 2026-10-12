@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../context/AuthContext";
+import { can } from "../../context/permissions";
 import { useLoginSidebar } from "../../context/LoginSidebarContext";
 
 import styles from "./register.module.css";
@@ -75,7 +76,7 @@ export default function RegisterPage() {
   // already signed in → nothing to register
   useEffect(() => {
     if (ready && user) {
-      router.replace(user.role === "admin" ? "/home" : "/dashboard");
+      router.replace(can(user.role, "accessHome") ? "/home" : "/dashboard");
     }
   }, [ready, user, router]);
 
@@ -170,7 +171,7 @@ export default function RegisterPage() {
           </ul>
 
           <p className={styles.asideNote}>
-            Faculty and admin accounts are created by an administrator.
+            All other accounts are created by the super admin.
           </p>
         </aside>
 

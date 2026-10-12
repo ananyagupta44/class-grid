@@ -9,47 +9,41 @@ import {
 } from "../controllers/courseController.js";
 import { assignFacultyToSubject } from "../controllers/courseSubjectController.js";
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-/*
- * student → read only
- * staff   → read only (they edit timetable entries, not course setup)
- * admin   → everything
- */
+// Add a new course — dept. in-charge and above
+router.post("/", protect, requirePermission("addCourse"), createCourse);
 
-// Create course — admin only
-router.post("/", protect, restrictTo("admin"), createCourse);
-
-// Get all courses — any logged-in user
+// View courses — any logged-in user
 router.get("/", protect, getCourses);
 
-// Subjects that can still be added to a course — admin only
+// Subjects that can still be added to a course — dept. in-charge and above
 router.get(
   "/:courseId/available-subjects",
   protect,
-  restrictTo("admin"),
+  requirePermission("addSubjectToCourse"),
   getAvailableSubjects,
 );
 
-// Add subject to a course — admin only
+// Add a subject to a course — dept. in-charge and above
 router.post(
   "/:courseId/subjects",
   protect,
-  restrictTo("admin"),
+  requirePermission("addSubjectToCourse"),
   addSubjectToCourse,
 );
 
-// Assign faculty to a subject — admin only
+// Assign faculty to a subject — dept. in-charge and above
 router.patch(
   "/:courseId/subjects/:subjectId/faculty",
   protect,
-  restrictTo("admin"),
+  requirePermission("assignFaculty"),
   assignFacultyToSubject,
 );
 
-// Get single course — any logged-in user
+// View one course — any logged-in user
 router.get("/:id", protect, getCourseById);
 
 export default router;

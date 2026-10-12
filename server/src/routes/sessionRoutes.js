@@ -7,17 +7,16 @@ import {
 } from "../controllers/sessionController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create session — admin only
-router.post("/", protect, restrictTo("admin"), createSession);
+// Create a session — super admin only
+router.post("/", protect, requirePermission("addSession"), createSession);
 
-// Get all sessions — any logged-in user
+// View sessions — any logged-in user
 router.get("/", protect, getSessions);
 
-// Get single session — any logged-in user
 router.get("/:id", protect, getSessionById);
 
 export default router;

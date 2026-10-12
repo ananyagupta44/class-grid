@@ -7,17 +7,16 @@ import {
 } from "../controllers/roomController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create venue — admin only
-router.post("/", protect, restrictTo("admin"), createRoom);
+// Add a venue — super admin only
+router.post("/", protect, requirePermission("addRoom"), createRoom);
 
-// Get all venues — any logged-in user (students may view venue timetables)
+// View venues — any logged-in user (everyone can open venue timetables)
 router.get("/", protect, getRooms);
 
-// Get single venue — any logged-in user
 router.get("/:id", protect, getRoomById);
 
 export default router;

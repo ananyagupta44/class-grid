@@ -7,17 +7,16 @@ import {
 } from "../controllers/subjectController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create subject — admin only
-router.post("/", protect, restrictTo("admin"), createSubject);
+// Create a subject — super admin only
+router.post("/", protect, requirePermission("addSubject"), createSubject);
 
-// Get all subjects — any logged-in user
+// View subjects — any logged-in user
 router.get("/", protect, getSubjects);
 
-// Get single subject — any logged-in user
 router.get("/:id", protect, getSubjectById);
 
 export default router;

@@ -141,7 +141,7 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(31rem, 1.08fr);
+  grid-template-columns: minmax(0, 0.98fr) minmax(31rem, 1.02fr);
 
   align-items: stretch;
   min-height: 0;

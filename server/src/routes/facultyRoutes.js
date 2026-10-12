@@ -7,16 +7,21 @@ import {
 } from "../controllers/facultyController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import restrictTo from "../middleware/roleMiddleware.js";
+import { requirePermission } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Create faculty — admin only
-router.post("/", protect, restrictTo("admin"), createFaculty);
+// Add a new faculty member — dept. in-charge and above
+router.post("/", protect, requirePermission("addFaculty"), createFaculty);
 
-// Faculty list / details — admin and staff (students cannot see faculty)
-router.get("/", protect, restrictTo("admin", "staff"), getFaculty);
+// Faculty list / details — dept. in-charge and above
+router.get("/", protect, requirePermission("viewFacultyList"), getFaculty);
 
-router.get("/:id", protect, restrictTo("admin", "staff"), getFacultyById);
+router.get(
+  "/:id",
+  protect,
+  requirePermission("viewFacultyList"),
+  getFacultyById,
+);
 
 export default router;
