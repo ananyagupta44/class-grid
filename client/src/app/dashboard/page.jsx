@@ -10,11 +10,17 @@ import RightPanel from "../../components/RightPanel";
 import FacultyLegend from "../../components/FacultyLegend";
 import PrintPicker from "../../components/PrintPicker";
 import GenerateTimetable from "../../components/GenerateTimetable";
-import { withLabBlocks } from "../../components/legendBlocks";
+import ComboModal from "../../components/ComboModal";
+import ComboScheduleModal from "../../components/ComboScheduleModal";
+import {
+  comboLabel,
+  comboMemberMap,
+  comboRemainingBlocks,
+  withLabBlocks,
+} from "../../components/legendBlocks";
 import EditClassModal from "../../components/EditClassModal";
 import { useTimetable } from "../../context/TimetableContext";
 import { useAuth } from "../../context/AuthContext";
-import useUiSound from "../../hooks/useUiSound";
 
 import { DAYS, PERIODS } from "../../context/TimetableContext";
 
@@ -64,27 +70,36 @@ async function apiRequest(endpoint, options = {}) {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { entries, setEntries, addEntry, updateEntry, addComboEntry } =
-    useTimetable();
+  const { entries, setEntries, addEntry, updateEntry } = useTimetable();
 
   /*
-   * ROLE PERMISSIONS
-   *   student → view course + venue timetables only, no editing
-   *   staff   → edit timetable entries; sees own timetable on the faculty tab
-   *   admin   → everything
+   * ROLE PERMISSIONS (see context/permissions.js)
+   *   student        course + venue timetables
+   *   faculty        + their own faculty timetable
+   *   dept_incharge  + add course / faculty, assign faculty to subjects
+   *   admin          + edit timetables, auto-generate
+   *   super_admin    everything
    */
   const {
     user,
     ready: authReady,
-    isStaff,
-    isStudent,
+    canViewOwnFaculty,
+    canViewAllFaculty,
     canEditTimetable,
-    canManageCourses,
+    canAssignFaculty,
+    canAddSubjectToCourse,
+    canGenerate,
+    canManageCombos,
   } = useAuth();
 
-  const allowedTabs = isStudent
-    ? ["course", "venue"]
-    : ["course", "faculty", "venue"];
+  // faculty / dept. in-charge: the faculty tab shows ONLY their own timetable
+  const ownFacultyOnly = canViewOwnFaculty && !canViewAllFaculty;
+
+  const facultyTabAllowed = canViewOwnFaculty || canViewAllFaculty;
+
+  const allowedTabs = facultyTabAllowed
+    ? ["course", "faculty", "venue"]
+    : ["course", "venue"];
 
   const urlCourseId = searchParams.get("courseId");
 
@@ -126,6 +141,11 @@ export default function Dashboard() {
 
   // admin: auto-generate the timetable of the whole session
   const [generateOpen, setGenerateOpen] = useState(false);
+
+  // combo classes: several courses attend one class together
+  const [combos, setCombos] = useState([]);
+  const [comboModalOpen, setComboModalOpen] = useState(false);
+  const [comboPlacement, setComboPlacement] = useState(null); // { combo, day, periodId, blockType, duration }
   const [printIds, setPrintIds] = useState(null);
 
   // once the print-only pages are rendered, open the print dialog;
@@ -291,9 +311,6 @@ export default function Dashboard() {
     setFeedEl(element);
   }, []);
 
-  // Pop on clicks, soft bubble while the user scrolls (not when a click scrolls the feed)
-  useUiSound({ element: feedEl, clickOn: "[data-course-id]" });
-
   function scrollToCourse(id, behavior = "smooth") {
     const feed = feedRef.current;
 
@@ -412,8 +429,8 @@ export default function Dashboard() {
   }, [focusId, courses]);
 
   useEffect(() => {
-    if (isStudent && viewType === "faculty") setViewType("course");
-  }, [isStudent, viewType]);
+    if (!facultyTabAllowed && viewType === "faculty") setViewType("course");
+  }, [facultyTabAllowed, viewType]);
 
   /*
    * TAB CHANGE
@@ -445,10 +462,10 @@ export default function Dashboard() {
    * MAIN GRID
    */
 
-  // the faculty record that belongs to the logged-in staff member
+  // the faculty record that belongs to the logged-in faculty member
   // (staff ID on the account = facultyId on the faculty record)
   const ownFaculty = useMemo(() => {
-    if (!isStaff || !user) return null;
+    if (!ownFacultyOnly || !user) return null;
 
     const same = (a, b) =>
       a &&
@@ -460,7 +477,7 @@ export default function Dashboard() {
       faculties.find((item) => same(item.email, user.email)) ||
       null
     );
-  }, [isStaff, user, faculties]);
+  }, [ownFacultyOnly, user, faculties]);
 
   const ownFacultyId = ownFaculty?._id || ownFaculty?.id || "";
 
@@ -499,13 +516,13 @@ export default function Dashboard() {
       });
     }
 
-    // staff: their own timetable is the main timetable on the faculty tab
-    if (viewType === "faculty" && isStaff && ownFacultyId) {
+    // faculty / dept. in-charge: their own timetable is the faculty tab
+    if (viewType === "faculty" && ownFacultyOnly && ownFacultyId) {
       return entries.filter((entry) => getId(entry.faculty) === ownFacultyId);
     }
 
     return [];
-  }, [entries, urlCourseId, viewType, isStaff, ownFacultyId]);
+  }, [entries, urlCourseId, viewType, ownFacultyOnly, ownFacultyId]);
 
   /*
    * FACULTY CARDS
@@ -531,19 +548,77 @@ export default function Dashboard() {
 
   // legend chips: a lab (the P in L-T-P) is ONE block of N periods,
   // not N separate one-period classes
+  // stored combos of this session
+  async function loadCombos() {
+    const sessionId = currentCourse?.session?._id || currentCourse?.session;
+
+    const scope = sessionId
+      ? `sessionId=${sessionId}`
+      : currentCourse?._id
+        ? `courseId=${currentCourse._id}`
+        : "";
+
+    if (!scope) {
+      setCombos([]);
+      return;
+    }
+
+    try {
+      const response = await apiRequest(`/combos?${scope}`);
+
+      setCombos(response.combos || []);
+    } catch {
+      setCombos([]);
+    }
+  }
+
+  useEffect(() => {
+    if (canEditTimetable || canAssignFaculty) loadCombos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCourse?._id]);
+
+  const comboOf = useMemo(() => comboMemberMap(combos, getId), [combos]);
+
   const legendForUi = useMemo(
-    () => legend.map((item) => withLabBlocks(item, gridEntries, getId)),
-    [legend, gridEntries],
+    () =>
+      legend.map((item) => {
+        const base = withLabBlocks(item, gridEntries, getId);
+
+        const subjectId = getId(item.subject);
+        const combo = comboOf.get(`${currentCourse?._id}|${subjectId}`);
+
+        // taught together with other courses → scheduled through the combo
+        return combo
+          ? { ...base, remainingBlocks: [], comboNote: comboLabel(combo) }
+          : base;
+      }),
+    [legend, gridEntries, comboOf, currentCourse?._id],
   );
 
-  // staff on the faculty tab: their own timetable is the main one,
-  // so the mini timetables only list the other faculty
-  const rightFacultyCards = useMemo(
+  // the combos this course belongs to, with the blocks still to place
+  const comboItems = useMemo(
     () =>
-      viewType === "faculty" && isStaff
-        ? facultyCards.filter((card) => card.id !== ownFacultyId)
-        : facultyCards,
-    [facultyCards, viewType, isStaff, ownFacultyId],
+      combos
+        .filter((combo) =>
+          combo.members.some(
+            (member) =>
+              String(getId(member.course)) === String(currentCourse?._id),
+          ),
+        )
+        .map((combo) => ({
+          combo,
+          label: comboLabel(combo),
+          members: combo.members
+            .map((m) => `${m.course?.courseId} · ${m.subject?.subjectId}`)
+            .join("  +  "),
+          students: combo.members.reduce(
+            (t, m) => t + (Number(m.course?.noOfStudents) || 0),
+            0,
+          ),
+          faculty: combo.faculty?.name || "",
+          remainingBlocks: comboRemainingBlocks(combo, gridEntries, getId),
+        })),
+    [combos, gridEntries, currentCourse?._id],
   );
 
   /*
@@ -620,9 +695,20 @@ export default function Dashboard() {
    * DOWNLOAD (faculty / venue): picker items + the pages to print
    */
 
+  // faculty / dept. in-charge can only download their OWN timetable
+  const visibleFacultyCards = useMemo(
+    () =>
+      ownFacultyOnly
+        ? facultyCards.filter(
+            (card) => String(card.id) === String(ownFacultyId),
+          )
+        : facultyCards,
+    [facultyCards, ownFacultyOnly, ownFacultyId],
+  );
+
   const pickerItems = useMemo(() => {
     if (viewType === "faculty") {
-      return facultyCards.map((card) => ({
+      return visibleFacultyCards.map((card) => ({
         id: String(card.id),
         label: card.title,
         sublabel: card.subtitle,
@@ -638,7 +724,7 @@ export default function Dashboard() {
     }
 
     return [];
-  }, [viewType, facultyCards, venueTimetableEntries]);
+  }, [viewType, visibleFacultyCards, venueTimetableEntries]);
 
   const printCards = useMemo(() => {
     if (!printIds) return [];
@@ -646,7 +732,7 @@ export default function Dashboard() {
     const chosen = new Set(printIds);
 
     if (viewType === "faculty") {
-      return facultyCards
+      return visibleFacultyCards
         .filter((card) => chosen.has(String(card.id)))
         .map((card) => ({
           id: String(card.id),
@@ -673,7 +759,7 @@ export default function Dashboard() {
     }
 
     return [];
-  }, [printIds, viewType, facultyCards, venueTimetableEntries]);
+  }, [printIds, viewType, visibleFacultyCards, venueTimetableEntries]);
 
   /*
    * OPEN ADD CLASS
@@ -810,7 +896,7 @@ export default function Dashboard() {
   }
 
   async function handleAddSubject(subjectId) {
-    if (!canManageCourses) return;
+    if (!canAddSubjectToCourse) return;
 
     try {
       const courseId = currentCourse?._id || currentCourse?.id;
@@ -824,9 +910,14 @@ export default function Dashboard() {
 
       console.log("SUBJECT ADDED:", response);
 
+      setError("");
+
       await reloadDashboard();
     } catch (error) {
       console.error("ADD SUBJECT ERROR:", error);
+
+      // show the server's reason on the page, not only in the console
+      setError(error.message || "Could not add the subject to this course.");
     }
   }
 
@@ -863,12 +954,34 @@ export default function Dashboard() {
    * EMPTY CELL
    */
 
+  // a combo block was dropped / placed on a slot → ask for the venue
+  function handleComboPlace(payload, day, periodId) {
+    if (!canManageCombos) return;
+
+    const combo = combos.find(
+      (item) => String(item._id) === String(payload.comboId),
+    );
+
+    if (!combo) return;
+
+    setComboPlacement({
+      combo,
+      day,
+      periodId,
+      blockType: payload.blockType,
+      duration: payload.duration || 1,
+    });
+  }
+
   function handleCellClick(day, periodId) {
     // a legend chip is selected → place it here (same as dropping it)
     if (selectedBlock) {
       const payload = selectedBlock;
       setSelectedBlock(null);
-      handleLegendDrop(payload, day, periodId);
+
+      if (payload.kind === "combo") handleComboPlace(payload, day, periodId);
+      else handleLegendDrop(payload, day, periodId);
+
       return;
     }
 
@@ -927,25 +1040,6 @@ export default function Dashboard() {
       venueId: getId(entry.venue),
     };
 
-    // ---------------------------------------
-    // COMBO CLASS
-    // ---------------------------------------
-    if (entry.comboGroupId) {
-      const comboEntries = entries.filter(
-        (item) =>
-          item.comboGroupId === entry.comboGroupId &&
-          (item.id !== entry.id || item._id !== entry._id),
-      );
-
-      const comboEntry = comboEntries[0];
-
-      if (comboEntry) {
-        modalData.comboCourseId = getId(comboEntry.course);
-
-        modalData.comboSubjectId = getId(comboEntry.subject);
-      }
-    }
-
     setModalState(modalData);
   }
 
@@ -958,28 +1052,8 @@ export default function Dashboard() {
 
     console.log("========== HANDLE SAVE START ==========");
     console.log("FORM:", form);
-    console.log("IS COMBO:", form?.isCombo);
 
     try {
-      // =========================
-      // COMBO CLASS
-      // =========================
-      if (form.isCombo) {
-        console.log("➡️ ENTERING COMBO BRANCH");
-        console.log("COMBO FORM:", form);
-
-        const result = await addComboEntry(form);
-
-        console.log("➡️ COMBO RESULT:", result);
-
-        if (result.ok) {
-          await reloadDashboard();
-          setModalState(null);
-        }
-
-        return result;
-      }
-
       // =========================
       // NORMAL CLASS
       // =========================
@@ -1089,7 +1163,7 @@ export default function Dashboard() {
    */
 
   async function handleAssignFaculty(subjectId, facultyId) {
-    if (!canManageCourses) return;
+    if (!canAssignFaculty) return;
 
     try {
       const response = await apiRequest(
@@ -1105,9 +1179,13 @@ export default function Dashboard() {
 
       console.log("FACULTY ASSIGNED:", response);
 
+      setError("");
+
       await reloadDashboard();
     } catch (error) {
       console.error("ASSIGN FACULTY ERROR:", error);
+
+      setError(error.message || "Could not assign the faculty.");
     }
   }
 
@@ -1224,7 +1302,7 @@ export default function Dashboard() {
             </label>
           )}
 
-          {canManageCourses && viewType === "course" && (
+          {canGenerate && viewType === "course" && (
             <button
               type="button"
               className={styles.primaryButton}
@@ -1268,7 +1346,7 @@ export default function Dashboard() {
 
       {/* MAIN */}
 
-      {viewType === "faculty" && !isStaff ? (
+      {viewType === "faculty" && !ownFacultyOnly ? (
         /*
          * FACULTY VIEW — FULL WIDTH, ALL FACULTY TIMETABLES IN A GRID
          */
@@ -1417,7 +1495,15 @@ export default function Dashboard() {
         /*
          * COURSE / FACULTY VIEW — UNCHANGED 2-COLUMN LAYOUT
          */
-        <div className={styles.mainRow}>
+        <div
+          className={`${styles.mainRow} ${
+            viewType !== "course"
+              ? styles.mainRowSolo // faculty's own TT: one full-width column
+              : !canViewAllFaculty
+                ? styles.mainRowSinglePanel // student / faculty: one normal-size venue panel
+                : ""
+          }`}
+        >
           <div className={styles.gridCol}>
             {viewType === "course" && canEditTimetable && selectedBlock && (
               <div className={styles.placingHint} role="status">
@@ -1534,6 +1620,11 @@ export default function Dashboard() {
                           venues={venues}
                           onDropEntry={editable ? handleDropEntry : undefined}
                           onLegendDrop={editable ? handleLegendDrop : undefined}
+                          onComboDrop={
+                            editable && canManageCombos
+                              ? handleComboPlace
+                              : undefined
+                          }
                           onCellClick={editable ? handleCellClick : undefined}
                           placing={editable && Boolean(selectedBlock)}
                           onEditEntry={editable ? handleEditEntry : undefined}
@@ -1592,7 +1683,7 @@ export default function Dashboard() {
             )}
 
             {/* STAFF — faculty tab: my own timetable is the main one */}
-            {viewType === "faculty" && isStaff && (
+            {viewType === "faculty" && ownFacultyOnly && (
               <div className={styles.myTimetable}>
                 <div className={styles.venueHeader}>
                   <div>
@@ -1614,8 +1705,7 @@ export default function Dashboard() {
                     courses={courses}
                     faculties={faculties}
                     venues={venues}
-                    onDropEntry={handleDropEntry}
-                    onEditEntry={handleEditEntry}
+                    readOnly
                   />
                 ) : (
                   <p className={styles.venueNoResults}>
@@ -1626,34 +1716,44 @@ export default function Dashboard() {
               </div>
             )}
 
-            {viewType === "course" && canEditTimetable && (
+            {viewType === "course" && (
               <FacultyLegend
                 legend={legendForUi}
                 faculties={faculties}
-                availableSubjects={availableSubjects}
+                availableSubjects={
+                  canAddSubjectToCourse ? availableSubjects : []
+                }
                 courseId={currentCourse?._id || currentCourse?.id}
-                onAssignFaculty={handleAssignFaculty}
-                onAddSubject={handleAddSubject}
-                onAddClass={() => openAddClass()}
-                onDrop={handleLegendDrop}
-                selectedBlock={selectedBlock}
-                onSelectBlock={setSelectedBlock}
-                canManage={canManageCourses}
+                onAssignFaculty={
+                  canAssignFaculty ? handleAssignFaculty : undefined
+                }
+                onAddSubject={
+                  canAddSubjectToCourse ? handleAddSubject : undefined
+                }
+                onAddClass={canEditTimetable ? () => openAddClass() : undefined}
+                onDrop={canEditTimetable ? handleLegendDrop : undefined}
+                selectedBlock={canEditTimetable ? selectedBlock : null}
+                onSelectBlock={canEditTimetable ? setSelectedBlock : () => {}}
+                canManage={canAssignFaculty}
+                canPlace={canEditTimetable}
+                combos={comboItems}
+                canCreateCombo={canManageCombos}
+                onCreateCombo={() => setComboModalOpen(true)}
               />
             )}
           </div>
 
-          {(viewType === "course" || (viewType === "faculty" && isStaff)) && (
+          {viewType === "course" && (
             <RightPanel
-              facultyCards={rightFacultyCards}
+              facultyCards={facultyCards}
               venueCards={venueCards}
               days={days}
               periods={periods}
               courses={courses}
               faculties={faculties}
               venues={venues}
-              showFaculty={!isStudent}
-              readOnly={!canEditTimetable || viewType !== "course"}
+              showFaculty={canViewAllFaculty}
+              readOnly={!canEditTimetable}
               onDropBlock={handleVenueDrop}
               onVenueCellClick={handleVenueCellClick}
             />
@@ -1667,7 +1767,6 @@ export default function Dashboard() {
         open={canEditTimetable && Boolean(modalState)}
         initial={modalState}
         course={course}
-        courses={courses}
         faculties={faculties}
         venues={venues}
         days={days}
@@ -1701,8 +1800,36 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* COMBO CLASSES: create / manage, and place a block on the timetable */}
+      {canManageCombos && (
+        <>
+          <ComboModal
+            open={comboModalOpen}
+            onClose={() => setComboModalOpen(false)}
+            sessionId={currentCourse?.session?._id || currentCourse?.session}
+            currentCourseId={currentCourse?._id}
+            onChanged={async () => {
+              await loadCombos();
+              await reloadDashboard();
+            }}
+          />
+
+          <ComboScheduleModal
+            combo={comboPlacement?.combo}
+            placement={comboPlacement}
+            periodLabel={
+              PERIODS.find((period) => period.id === comboPlacement?.periodId)
+                ?.label
+            }
+            venues={venues}
+            onClose={() => setComboPlacement(null)}
+            onDone={reloadDashboard}
+          />
+        </>
+      )}
+
       {/* ADMIN: auto-generate the session's timetable */}
-      {canManageCourses && (
+      {canGenerate && (
         <GenerateTimetable
           open={generateOpen}
           onClose={() => setGenerateOpen(false)}

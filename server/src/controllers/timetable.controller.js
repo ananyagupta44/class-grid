@@ -7,6 +7,7 @@ import Subject from "../models/Subject.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
 import TimetableEntry from "../models/TimetableEntry.js";
+import Combo from "../models/Combo.js";
 
 // sessions currently being generated (stops two admins clicking at once)
 const running = new Set();
@@ -34,12 +35,6 @@ function cleanConfig(config = {}) {
 
   if (Number.isInteger(labBlock) && labBlock >= 1 && labBlock <= 4) {
     out.maxLabBlock = labBlock;
-  }
-
-  const sectionRun = Number(config.maxConsecutiveSection);
-
-  if (Number.isInteger(sectionRun) && sectionRun >= 2 && sectionRun <= 6) {
-    out.maxConsecutiveSection = sectionRun;
   }
 
   return out;
@@ -77,6 +72,15 @@ export const generate = async (req, res) => {
       c.subjects.map((s) => s.faculty).filter(Boolean),
     );
 
+    // stored combo classes: each is scheduled as ONE block shared by its courses
+    const combos = await Combo.find({ session: sessionId }).lean();
+
+    // a combo can pull in subjects / faculty the plain course list did not
+    for (const combo of combos) {
+      for (const member of combo.members) subjectIds.push(member.subject);
+      facultyIds.push(combo.faculty);
+    }
+
     const [subjects, faculties, rooms, existingEntries] = await Promise.all([
       Subject.find({ _id: { $in: subjectIds } }).lean(),
       Faculty.find({ _id: { $in: facultyIds } }).lean(),
@@ -87,12 +91,27 @@ export const generate = async (req, res) => {
     ]);
 
     const result = generateTimetable(
-      { courses, subjects, faculties, rooms, existingEntries },
+      { courses, subjects, faculties, rooms, existingEntries, combos },
       cleanConfig(config),
     );
 
     if (!result.ok) {
       return res.status(422).json(result);
+    }
+
+    // every combo block gets ONE comboGroupId shared by its courses' entries
+    // (a real ObjectId string, like manually created combos)
+    const groupIds = new Map();
+
+    for (const entry of result.entries) {
+      if (!entry.comboKey) continue;
+
+      if (!groupIds.has(entry.comboKey)) {
+        groupIds.set(entry.comboKey, new mongoose.Types.ObjectId().toString());
+      }
+
+      entry.comboGroupId = groupIds.get(entry.comboKey);
+      delete entry.comboKey;
     }
 
     if (dryRun) {

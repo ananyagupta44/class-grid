@@ -60,11 +60,16 @@ export const PERMISSIONS = {
   // ---- timetable work (TT team and above) ----
   editTimetable: from("admin"),
   generateTimetable: from("admin"),
+  manageCombos: from("admin"), // create / delete / schedule combo classes
 
   // ---- institute-level data and accounts (super admin only) ----
   addRoom: ["super_admin"],
   addSession: ["super_admin"],
   manageAccounts: ["super_admin"],
+
+  // ---- audit trail: who changed what (read the log + download reports) ----
+  // Assumption: only the super admin. To also let the TT team see it, change to from("admin").
+  viewAuditLog: ["super_admin"],
 };
 
 export const can = (role, permission) =>

@@ -17,6 +17,7 @@ export default function TimetableGrid({
   printCompact = false, // portrait print: narrower columns, smaller text
   onDropEntry,
   onLegendDrop,
+  onComboDrop,
   onCellClick,
   onEditEntry,
 }) {
@@ -82,6 +83,14 @@ export default function TimetableGrid({
       // ==========================================
       if (payload.kind === "legend") {
         onLegendDrop?.(payload, day, periodId);
+        return;
+      }
+
+      // ==========================================
+      // COMBO BLOCK (legend) → PLACE A COMBO CLASS
+      // ==========================================
+      if (payload.kind === "combo") {
+        onComboDrop?.(payload, day, periodId);
         return;
       }
 

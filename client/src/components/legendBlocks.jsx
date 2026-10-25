@@ -82,3 +82,82 @@ export function withLabBlocks(item, courseEntries, getId) {
     ],
   };
 }
+
+/* ==================================================
+   COMBO CLASSES in the legend
+   ================================================== */
+
+// "courseDbId|subjectDbId" → combo, for every member of every combo
+export function comboMemberMap(combos, getId) {
+  const map = new Map();
+
+  for (const combo of combos || []) {
+    for (const member of combo.members || []) {
+      map.set(`${getId(member.course)}|${getId(member.subject)}`, combo);
+    }
+  }
+
+  return map;
+}
+
+/*
+ * Blocks of a combo that are still to be placed.
+ *   combo          populated combo from GET /combos
+ *   courseEntries  timetable entries of the CURRENT course (one entry per
+ *                  placed block, so nothing is counted twice)
+ *
+ * Lecture hours (L+T) are single-period blocks; labs (P) are whole blocks of
+ * up to 3 periods, exactly as in splitLabPeriods().
+ */
+export function comboRemainingBlocks(combo, courseEntries, getId) {
+  const subject = combo?.members?.[0]?.subject;
+  const [L = 0, T = 0, P = 0] = subject?.ltp || [];
+
+  const groups = new Map(); // comboGroupId -> entry (one per placed block)
+
+  for (const entry of courseEntries) {
+    if (String(getId(entry.combo)) !== String(combo._id)) continue;
+
+    const key = entry.comboGroupId || String(entry._id || entry.id);
+
+    if (!groups.has(key)) groups.set(key, entry);
+  }
+
+  let lecturesPlaced = 0;
+  let labPeriodsPlaced = 0;
+
+  for (const entry of groups.values()) {
+    if (isLabRoom(entry.venue)) labPeriodsPlaced += entry.duration || 1;
+    else lecturesPlaced += 1;
+  }
+
+  const blocks = [];
+
+  const lectures = Math.max(L + T - lecturesPlaced, 0);
+
+  for (let i = 0; i < lectures; i++) {
+    blocks.push({ type: "lecture", number: i + 1, duration: 1, label: "Lecture" });
+  }
+
+  splitLabPeriods(Math.max(P - labPeriodsPlaced, 0)).forEach((duration, i, all) => {
+    blocks.push({
+      type: "lab",
+      number: i + 1,
+      duration,
+      label: all.length > 1 ? `Lab ${i + 1} (${duration} hrs)` : `Lab (${duration} hrs)`,
+    });
+  });
+
+  return blocks;
+}
+
+// "CS435 + IT347" unless the combo has its own name
+export function comboLabel(combo) {
+  if (combo?.name) return combo.name;
+
+  const codes = (combo?.members || [])
+    .map((member) => member.subject?.subjectId)
+    .filter(Boolean);
+
+  return [...new Set(codes)].join(" + ") || "Combo";
+}

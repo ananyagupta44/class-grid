@@ -1,271 +1,123 @@
-
 .card {
   width: 100%;
-  max-width: 100%;
   min-width: 0;
-
   box-sizing: border-box;
-
-  background: var(--parchment-card);
-
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-
-  box-shadow: var(--shadow-card);
-
-  padding: 0.65rem;
-
-  overflow: hidden;
-
-  transform: none;
-  transition: none;
+  border-top-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--parchment-card);
 }
 
-/* ================= ACCENTS ================= */
-
-.accent-faculty {
-  border-top: 3px solid #4f7a6d;
+.venue {
+  border-top-color: var(--marigold);
 }
 
-.accent-venue {
-  border-top: 3px solid #b0654a;
+.faculty {
+  border-top-color: var(--slate, var(--ink));
 }
 
-/* ================= HEADER ================= */
-
-.header {
-  width: 100%;
-  min-width: 0;
-
+.head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-
-  gap: 0.35rem;
-
-  margin-bottom: 0.45rem;
-
-  box-sizing: border-box;
-}
-
-.headerInfo {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.kicker {
-  margin: 0 0 0.1rem;
-
-  font-size: 0.52rem;
-  font-weight: 700;
-
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-
-  color: var(--ink-muted);
-}
-
-.header h3 {
-  margin: 0;
-
-  font-size: 0.72rem;
-
-  color: var(--ink);
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.header p:last-child {
-  margin: 0.1rem 0 0;
-
-  font-size: 0.54rem;
-
-  color: var(--ink-muted);
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ================= DROP HINT ================= */
-
-.dropHint {
-  flex: 0 0 auto;
-
-  font-size: 0.5rem;
-  font-weight: 700;
-
-  color: var(--marigold-dark);
-
-  background: #fdf3e2;
-
-  border-radius: 4px;
-
-  padding: 0.2rem 0.28rem;
-
-  white-space: nowrap;
-}
-
-/* ================= GRID WRAPPER ================= */
-
-.gridScroll {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-
-  /*
-   * No horizontal scrolling.
-   * The grid must fit the card exactly.
-   */
-  overflow: hidden;
-
-  box-sizing: border-box;
-}
-
-/* ================= GRID ================= */
-
-.grid {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  box-sizing: border-box;
-}
-
-/* ================= PERIOD HEADER ================= */
-
-.period {
-  min-width: 0;
-  width: 100%;
-
-  box-sizing: border-box;
-
-  padding: 0.2rem 0.02rem;
-
-  text-align: center;
-
-  font-family: "IBM Plex Mono", monospace;
-
-  font-size: 0.39rem;
-  line-height: 1.05;
-
-  color: var(--ink-muted);
-
-  border-left: 1px solid var(--line);
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
   border-bottom: 1px solid var(--line);
+}
 
-  /*
-   * Don't allow long time labels to
-   * increase the column width.
-   */
+.head h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.head span {
+  font-size: 0.68rem;
+  color: var(--ink-muted);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
 }
 
-/* ================= CORNER ================= */
-
-.corner {
-  min-width: 0;
+.table {
+  width: 100%;
 }
-
-/* ================= ROW ================= */
 
 .row {
-  display: contents;
+  display: grid;
+  width: 100%;
+  position: relative;
 }
 
-/* ================= DAY ================= */
-
-.day {
-  min-width: 0;
-  width: 34px;
-
+.corner,
+.periodHead,
+.dayCell {
   display: flex;
   align-items: center;
   justify-content: center;
-
-  box-sizing: border-box;
-
-  font-size: 0.5rem;
+  font-size: 0.56rem;
   font-weight: 700;
-
   color: var(--ink-muted);
+  border-bottom: 1px solid var(--line);
 }
 
-/* ================= CELL ================= */
+.periodHead {
+  min-height: 1.3rem;
+  border-left: 1px solid var(--line);
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+}
+
+.dayCell {
+  min-height: 2.3rem;
+  background: var(--parchment);
+  text-transform: uppercase;
+}
 
 .cell {
   min-width: 0;
-  width: 100%;
-  min-height: 2.25rem;
-  box-sizing: border-box;
-  border-radius: 3px;
-  cursor: pointer;
-  background: var(--parchment);
-  border: 1px solid transparent;
+  min-height: 2.3rem;
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  z-index: 1;
+}
+
+/* while a class is being dragged: this card accepts it */
+.dropReady {
+  outline: 1px dashed rgba(232, 163, 61, 0.6);
+  outline-offset: -2px;
+}
+
+/* the cells a drop here would use (more than one for a lab) */
+.cellOver,
+.cellOver.dropReady {
+  background: rgba(232, 163, 61, 0.35);
+  outline: 2px dashed var(--marigold);
+  outline-offset: -2px;
+}
+
+/* …in red when the class would run past the last period */
+.cellBad,
+.cellBad.dropReady {
+  background: rgba(179, 57, 42, 0.22);
+  outline: 2px dashed #b3392a;
+  outline-offset: -2px;
+}
+
+.block {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  height: calc(100% - 0.2rem);
+  margin-top: 0.1rem;
+  align-self: start;
   overflow: hidden;
-  transition:
-    border-color 0.12s var(--ease),
-    background 0.12s var(--ease);
 }
 
-/* ================= DROP ================= */
-
-.dropCell:hover {
-  border-color: var(--marigold);
-
-  background: rgba(232, 163, 61, 0.1);
+/* while dragging, a block lets the drop through to the cell under it, so a
+   class can be dropped onto an occupied slot (and get the clash message) */
+.card:has(.dropReady) .block {
+  pointer-events: none;
 }
-
-/* ================= PLUS ================= */
-
-.plus {
-  display: grid;
-  place-items: center;
-
-  width: 100%;
-  height: 100%;
-
-  color: var(--ink-muted);
-
-  opacity: 0;
-
-  transition: opacity 0.12s var(--ease);
-}
-
-.dropCell:hover .plus {
-  opacity: 1;
-}
-
-/* ================= RESPONSIVE ================= */
-
-@media (max-width: 700px) {
-  .card {
-    padding: 0.5rem;
-  }
-
-  .period {
-    font-size: 0.34rem;
-  }
-
-  .day {
-    width: 26px;
-    font-size: 0.44rem;
-  }
-
-  .grid {
-    grid-template-columns: 26px repeat(
-      9,
-      minmax(0, 1fr)
-    ) !important;
-  }
-
-  .cell {
-    min-height: 1.7rem;
-  }
-}
-

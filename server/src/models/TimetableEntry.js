@@ -54,8 +54,17 @@ const timetableEntrySchema = new mongoose.Schema(
       min: 1,
       max: 3,
     },
+    // one id per placed combo BLOCK: the entries of all its courses share it
     comboGroupId: {
       type: String,
+      default: null,
+      index: true,
+    },
+
+    // the stored Combo this block belongs to (null for ordinary classes)
+    combo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Combo",
       default: null,
       index: true,
     },

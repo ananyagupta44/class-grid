@@ -47,6 +47,14 @@ const subjectSchema = new mongoose.Schema(
       default: "course",
     },
 
+    // Lab subjects that need a SPECIAL lab: the category of the room they must
+    // use, e.g. "Chemistry" or "Electronics" (matches Room.category).
+    // Leave empty when any lab will do.
+    requiredRoomCategory: {
+      type: String,
+      trim: true,
+    },
+
     labDuration: {
       type: Number,
       default: 1,

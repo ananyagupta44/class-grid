@@ -16,6 +16,9 @@ export default function FacultyLegend({
   onSelectBlock,
   canManage = true, // false → no "+ Add Subject" and faculty can't be reassigned
   canPlace = true, // false → classes can't be dragged / placed (view + setup only)
+  combos = [], // combo classes of this course: [{ combo, label, members, students, faculty, remainingBlocks }]
+  canCreateCombo = false, // show "+ Combo"
+  onCreateCombo,
 }) {
   const [showSubjects, setShowSubjects] = useState(false);
 
@@ -31,7 +34,27 @@ export default function FacultyLegend({
     };
   }
 
+  function comboPayload(entry, block) {
+    return {
+      kind: "combo",
+      courseId,
+      comboId: entry.combo._id,
+      blockType: block.type,
+      blockNumber: block.number,
+      duration: block.duration || 1,
+    };
+  }
+
   function isSelected(payload) {
+    if (payload.kind === "combo") {
+      return (
+        selectedBlock?.kind === "combo" &&
+        selectedBlock.comboId === payload.comboId &&
+        selectedBlock.blockType === payload.blockType &&
+        selectedBlock.blockNumber === payload.blockNumber
+      );
+    }
+
     return (
       !!selectedBlock &&
       selectedBlock.subjectId === payload.subjectId &&
@@ -40,13 +63,10 @@ export default function FacultyLegend({
     );
   }
 
-  function startDrag(event, item, block) {
+  function startDrag(event, payload) {
     event.dataTransfer.effectAllowed = "copy";
 
-    event.dataTransfer.setData(
-      "application/json",
-      JSON.stringify(buildPayload(item, block)),
-    );
+    event.dataTransfer.setData("application/json", JSON.stringify(payload));
   }
 
   function handleDrop(event) {
@@ -88,6 +108,17 @@ export default function FacultyLegend({
               onClick={() => onAddClass?.()}
             >
               + Add Class
+            </button>
+          )}
+
+          {canCreateCombo && (
+            <button
+              type="button"
+              className={styles.addCombo}
+              onClick={() => onCreateCombo?.()}
+              title="Make several courses share one class"
+            >
+              + Combo
             </button>
           )}
 
@@ -173,7 +204,12 @@ export default function FacultyLegend({
               </div>
 
               <div className={styles.blockRow}>
-                {!canPlace ? (
+                {item.comboNote ? (
+                  // this subject is taught together with other courses
+                  <span className={styles.done}>
+                    Scheduled through combo “{item.comboNote}”
+                  </span>
+                ) : !canPlace ? (
                   // setup-only view: no dragging, just how much is left
                   <span className={styles.done}>
                     {remaining.length
@@ -196,7 +232,7 @@ export default function FacultyLegend({
                           selected ? styles.chipSelected : ""
                         }`}
                         aria-pressed={selected}
-                        onDragStart={(event) => startDrag(event, item, block)}
+                        onDragStart={(event) => startDrag(event, payload)}
                         onClick={() =>
                           onSelectBlock?.(
                             selected
@@ -209,6 +245,77 @@ export default function FacultyLegend({
                             ? ` (takes ${block.duration} periods in a row)`
                             : ""
                         }`}
+                      >
+                        {block.label}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className={styles.done}>All classes scheduled</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* ---------- COMBO CLASSES of this course ---------- */}
+        {combos.map((entry) => {
+          const remaining = entry.remainingBlocks;
+
+          return (
+            <div
+              key={entry.combo._id}
+              className={`${styles.subject} ${styles.comboRow}`}
+            >
+              <div className={styles.subjectInfo}>
+                <strong>
+                  <span className={styles.comboTag}>COMBO</span> {entry.label}
+                </strong>
+
+                <span>{entry.members}</span>
+
+                <small>{entry.students} students together</small>
+              </div>
+
+              <div className={styles.facultyRow}>
+                <span>{entry.faculty}</span>
+              </div>
+
+              <div className={styles.blockRow}>
+                {!canPlace ? (
+                  <span className={styles.done}>
+                    {remaining.length
+                      ? `${remaining.length} block${
+                          remaining.length > 1 ? "s" : ""
+                        } still to schedule`
+                      : "All classes scheduled"}
+                  </span>
+                ) : remaining.length ? (
+                  remaining.map((block) => {
+                    const payload = comboPayload(entry, block);
+                    const selected = isSelected(payload);
+
+                    return (
+                      <button
+                        key={`${entry.combo._id}-${block.type}-${block.number}`}
+                        type="button"
+                        draggable
+                        className={`${styles.chip} ${styles.chipCombo} ${
+                          selected ? styles.chipSelected : ""
+                        }`}
+                        aria-pressed={selected}
+                        onDragStart={(event) => startDrag(event, payload)}
+                        onClick={() =>
+                          onSelectBlock?.(
+                            selected
+                              ? null
+                              : {
+                                  ...payload,
+                                  label: `${entry.label} · ${block.label}`,
+                                },
+                          )
+                        }
+                        title={`Drag this combo ${block.label.toLowerCase()} to the timetable, or click it and then click a slot`}
                       >
                         {block.label}
                       </button>

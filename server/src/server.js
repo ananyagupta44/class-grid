@@ -1,3 +1,4 @@
+import "./audit/audit.setup.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -14,6 +15,10 @@ import sessionRoutes from "./routes/sessionRoutes.js";
 import timetableRoutes from "./routes/timetableRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import timetable from "./routes/timetable.routes.js";
+import { auditContext } from "./audit/auditContext.js";
+import { auditSelfCheck } from "./audit/audit.setup.js";
+import auditRoutes from "./routes/audit.routes.js";
+import comboRoutes from "./routes/comboRoutes.js";
 
 // __dirname equivalent for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +38,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(auditContext);                    // 2. right after express.json(), before all routes
+app.use("/api/audit", auditRoutes); 
+
 // --------------------------------------------------
 // MongoDB Connection
 // --------------------------------------------------
@@ -45,6 +53,8 @@ mongoose
   .catch((err) => {
     console.error("MongoDB connection error:", err.message);
   });
+
+  auditSelfCheck();  
 
 // --------------------------------------------------
 // Routes
@@ -71,6 +81,8 @@ app.use("/api/timetable", timetableRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/api/timetable", timetable);
+app.use("/api/audit", auditRoutes);
+app.use("/api/combos", comboRoutes);
 
 // --------------------------------------------------
 // Health Check

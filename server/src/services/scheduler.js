@@ -6,11 +6,11 @@
  * Domain   : (day, startPeriod, room)
  * Hard     : teacher / room / section double-booking, room capacity, room type,
  *            lab contiguity (same room, consecutive periods, same day), working days/periods,
- *            faculty weekly cap, blocks never span a break,
- *            students get a free period (lunch) after maxConsecutiveSection back-to-back classes
- * Soft     : gaps, teacher consecutive load, capacity fit, room balance, lab room category,
- *            earlier start (morning preferred when everything else ties)
+ *            faculty weekly cap, blocks never span a break
+ * Soft     : gaps, teacher consecutive load, capacity fit, room balance, lab room category
  */
+
+import { norm, requiredLabCategory } from "../utils/labRooms.js";
 
 const DEFAULTS = {
   days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
@@ -21,14 +21,12 @@ const DEFAULTS = {
   maxLabBlock: 3, // lab hours above this get split into several blocks (manual scheduling also caps labs at 3)
   maxSameSubjectPerDay: 1, // lecture/tutorial periods of one subject per section per day
   maxConsecutiveTeaching: 2, // 3+ consecutive periods for a teacher is penalised
-  maxConsecutiveSection: 3, // students get a free period (lunch) after this many back-to-back classes; null = off
   weights: {
     gap: 5,
     consecutive: 4,
     capacityFit: 2,
     roomBalance: 1,
     categoryMismatch: 3,
-    earliness: 0.5, // cost per period of delay: prefers morning starts when all else ties
   },
   attempts: 5, // restarts with different tie-breaking; best soft cost wins
   maxNodes: 20000, // search budget per attempt
@@ -80,39 +78,81 @@ const runLength = (set, s, e) => {
 };
 
 // ---------- 1. build variables ----------
-function buildUnits(courses, subjById, cfg) {
+function buildUnits(courses, subjById, cfg, combos = []) {
   const units = [];
-  const push = (course, subject, faculty, duration, isLab) =>
+
+  /*
+   * members: [{ course, subject }] — ONE member for a normal class, several for
+   * a combo class (the same block is then shared by all those courses).
+   */
+  const push = (members, faculty, duration, isLab, comboId = null) =>
     units.push({
       id: units.length,
-      courses: [course], // array so merged/combined sessions can be added later
-      courseIds: [String(course._id)],
-      subject,
-      subjKeys: [`${course._id}|${subject._id}`],
+      members,
+      courses: members.map((m) => m.course),
+      courseIds: members.map((m) => String(m.course._id)),
+      subject: members[0].subject,
+      subjKeys: members.map((m) => `${m.course._id}|${m.subject._id}`),
       faculty,
       facultyId: String(faculty),
       duration,
       isLab,
-      size: course.noOfStudents, // merged: sum of sections
+      size: members.reduce((t, m) => t + (m.course.noOfStudents || 0), 0), // combo: sum of sections
+      comboId,
     });
+
+  // L-T-P → how many one-period classes and which lab blocks
+  const addUnits = (members, faculty, comboId) => {
+    const subject = members[0].subject;
+    const [L = 0, T = 0, P = 0] = subject.ltp || [];
+    let periods = L + T; // each L or T hour = one single-period unit
+    const lab = P; // P hours = contiguous lab block(s)
+    if (!periods && !lab) periods = subject.noOfClasses || 0; // fallback if ltp missing
+    for (let i = 0; i < periods; i++)
+      push(members, faculty, 1, false, comboId);
+    if (lab) {
+      const n = Math.ceil(lab / cfg.maxLabBlock);
+      for (let i = 0; i < n; i++)
+        push(members, faculty, Math.floor((lab + i) / n), true, comboId);
+    }
+  };
+
+  // (course, subject) pairs that belong to a stored combo are scheduled
+  // through the combo, never on their own
+  const comboOf = new Set();
+  for (const combo of combos)
+    for (const m of combo.members || [])
+      comboOf.add(`${m.course}|${m.subject}`);
 
   for (const course of courses) {
     for (const { subject: sid, faculty } of course.subjects) {
       const subject = subjById.get(String(sid));
       if (!subject) continue;
-      const [L = 0, T = 0, P = 0] = subject.ltp || [];
-      let periods = L + T; // each L or T hour = one single-period unit
-      const lab = P; // P hours = contiguous lab block(s)
-      if (!periods && !lab) periods = subject.noOfClasses || 0; // fallback if ltp missing
-      for (let i = 0; i < periods; i++)
-        push(course, subject, faculty, 1, false);
-      if (lab) {
-        const n = Math.ceil(lab / cfg.maxLabBlock);
-        for (let i = 0; i < n; i++)
-          push(course, subject, faculty, Math.floor((lab + i) / n), true);
-      }
+      if (comboOf.has(`${course._id}|${sid}`)) continue;
+      addUnits([{ course, subject }], faculty, null);
     }
   }
+
+  const courseById = new Map(courses.map((c) => [String(c._id), c]));
+  const skipped = [];
+
+  for (const combo of combos) {
+    const members = (combo.members || [])
+      .map((m) => ({
+        course: courseById.get(String(m.course)),
+        subject: subjById.get(String(m.subject)),
+      }))
+      .filter((m) => m.course && m.subject);
+
+    if (members.length < 2) {
+      skipped.push(combo.name || String(combo._id));
+      continue;
+    }
+
+    addUnits(members, combo.faculty, String(combo._id));
+  }
+
+  units.skippedCombos = skipped;
   return units;
 }
 
@@ -121,13 +161,10 @@ function preflight(units, rooms, facById, cfg) {
   const errors = [],
     warnings = [];
   const label = (u) =>
-    `${u.courses[0].slug || u.courses[0].courseId} / ${u.subject.subjectId || u.subject.name}`;
+    u.members.length > 1
+      ? `COMBO ${u.courses.map((c) => c.courseId).join(" + ")} / ${u.members.map((m) => m.subject.subjectId || m.subject.name).join(" + ")}`
+      : `${u.courses[0].slug || u.courses[0].courseId} / ${u.subject.subjectId || u.subject.name}`;
   const slots = cfg.days.length * cfg.periods;
-  const k = cfg.maxConsecutiveSection;
-  // most classes a section can hold per week while keeping a free period after every k back-to-back classes
-  const secSlots = k
-    ? cfg.days.length * (cfg.periods - Math.floor(cfg.periods / (k + 1)))
-    : slots;
   const secLoad = new Map(),
     facLoad = new Map();
 
@@ -135,23 +172,19 @@ function preflight(units, rooms, facById, cfg) {
     if (!u.faculty) errors.push(`No faculty assigned to ${label(u)}`);
     if (!u.rooms.length)
       errors.push(
-        `No ${u.isLab ? "lab" : "classroom"} with capacity >= ${u.size} for ${label(u)}`,
+        `No ${u.labCategoryText ? `${u.labCategoryText} ` : ""}${u.isLab ? "lab" : "classroom"} with capacity >= ${u.size} for ${label(u)}`,
       );
     if (u.duration > cfg.periods)
       errors.push(`Block longer than a day: ${label(u)}`);
-    if (k && u.duration > k)
-      errors.push(
-        `Lab block of ${u.duration} periods is longer than maxConsecutiveSection (${k}): ${label(u)}`,
-      );
     for (const cid of u.courseIds)
       secLoad.set(cid, (secLoad.get(cid) || 0) + u.duration);
     if (u.faculty)
       facLoad.set(u.facultyId, (facLoad.get(u.facultyId) || 0) + u.duration);
   }
   for (const [cid, n] of secLoad)
-    if (n > secSlots)
+    if (n > slots)
       errors.push(
-        `Section ${cid} needs ${n} periods but only ${secSlots} fit per week with a lunch gap`,
+        `Section ${cid} needs ${n} periods but only ${slots} exist per week`,
       );
   for (const [fid, n] of facLoad) {
     const f = facById.get(fid);
@@ -173,7 +206,7 @@ function preflight(units, rooms, facById, cfg) {
 
 // ---------- 3. one search attempt ----------
 function runAttempt(ctx, seed) {
-  const { cfg, units, existingEntries, facCap } = ctx;
+  const { cfg, units, existingEntries, facCap, reserved } = ctx;
   const rng = mulberry32(seed);
   const nDays = cfg.days.length;
   const idToIndex = new Map(cfg.periodIds.map((id, i) => [id, i + 1]));
@@ -230,26 +263,15 @@ function runAttempt(ctx, seed) {
     for (const cid of u.courseIds) {
       // minimise gaps
       const set = peek(secDay, `${cid}|${d}`);
-      // one free period per day is the lunch break, not a defect
-      const free = cfg.maxConsecutiveSection ? 1 : 0;
-      c +=
-        w.gap *
-        (Math.max(0, gapsWith(set, s, e) - free) -
-          Math.max(0, gapsOf(set) - free));
+      c += w.gap * (gapsWith(set, s, e) - gapsOf(set));
     }
     const run = runLength(peek(facDay, `${u.facultyId}|${d}`), s, e); // teacher load
     if (run > cfg.maxConsecutiveTeaching)
       c += w.consecutive * (run - cfg.maxConsecutiveTeaching);
     c += (w.capacityFit * (r.capacity - u.size)) / r.capacity; // capacity fit
     c += (w.roomBalance * (roomLoad.get(r.id) || 0)) / (assigned.length + 1); // room balance
-    c += w.earliness * (s - 1); // earlier start preferred (otherwise ties are random)
-    if (
-      u.isLab &&
-      u.subject.category &&
-      r.category &&
-      u.subject.category !== r.category
-    )
-      c += w.categoryMismatch; // right kind of lab
+    if (u.isLab && !u.labCategory && r.category && reserved.has(norm(r.category)))
+      c += w.categoryMismatch; // don't use up a specialised lab
     return c;
   };
 
@@ -273,15 +295,6 @@ function runAttempt(ctx, seed) {
         if (anyIn(fSet, s, e)) continue; // teacher double-booking
         if (u.courseIds.some((cid) => anyIn(peek(secDay, `${cid}|${d}`), s, e)))
           continue; // section
-        if (
-          cfg.maxConsecutiveSection &&
-          u.courseIds.some(
-            (cid) =>
-              runLength(peek(secDay, `${cid}|${d}`), s, e) >
-              cfg.maxConsecutiveSection,
-          )
-        )
-          continue; // students need a lunch gap
         for (const r of u.rooms) {
           if (anyIn(peek(roomDay, `${r.id}|${d}`), s, e)) continue; // room double-booking
           out.push({ d, s, r, cost: costOf(u, d, s, e, r) + rng() * 0.01 });
@@ -365,7 +378,7 @@ function generateTimetable(data, userConfig = {}) {
       : Array.from({ length: cfg.periods }, (_, i) => `p${i + 1}`);
   cfg.periods = cfg.periodIds.length;
 
-  const { courses, subjects, faculties, existingEntries = [] } = data;
+  const { courses, subjects, faculties, existingEntries = [], combos = [] } = data;
   const rooms = data.rooms.map((r) => ({ ...r, id: String(r._id) }));
   const subjById = new Map(subjects.map((s) => [String(s._id), s]));
   const facById = new Map(faculties.map((f) => [String(f._id), f]));
@@ -373,23 +386,52 @@ function generateTimetable(data, userConfig = {}) {
     faculties.map((f) => [String(f._id), f.noOfClassesPerWeek || 0]),
   );
 
-  const units = buildUnits(courses, subjById, cfg);
+  const units = buildUnits(courses, subjById, cfg, combos);
+  const isLabRoomCfg = (r) => cfg.labRoomPattern.test(r.type || "");
+  const categoryNotes = new Map();
+
   for (const u of units) {
+    // Chemistry lab class → Chemistry lab only (when such a lab exists)
+    const need = u.isLab
+      ? requiredLabCategory(u.subject, rooms, isLabRoomCfg)
+      : "";
+
+    u.labCategory = need;
+    u.labCategoryText = need
+      ? String(u.subject.requiredRoomCategory).trim()
+      : "";
+
+    if (u.isLab && u.subject.requiredRoomCategory && !need) {
+      categoryNotes.set(
+        String(u.subject._id),
+        `${u.subject.subjectId || u.subject.name}: no lab room has the category "${String(u.subject.requiredRoomCategory).trim()}", so any lab room can be used`,
+      );
+    }
+
     u.rooms = rooms
       .filter(
         (r) =>
-          (u.isLab
-            ? cfg.labRoomPattern.test(r.type || "")
-            : !cfg.labRoomPattern.test(r.type || "")) && r.capacity >= u.size,
+          (u.isLab ? isLabRoomCfg(r) : !isLabRoomCfg(r)) &&
+          r.capacity >= u.size &&
+          (!need || norm(r.category) === need),
       )
       .sort((a, b) => a.capacity - b.capacity);
   }
 
   const { errors, warnings, label } = preflight(units, rooms, facById, cfg);
+  warnings.push(...categoryNotes.values());
+  for (const name of units.skippedCombos || [])
+    warnings.push(
+      `Combo "${name}" was skipped: fewer than two of its courses are in this session`,
+    );
   if (errors.length)
     return { ok: false, entries: [], errors, warnings, stuck: [], stats: {} };
 
-  const ctx = { cfg, units, existingEntries, facCap };
+  // categories some subject is tied to, e.g. "chemistry" — other lab
+  // classes avoid those rooms when they can (soft preference)
+  const reserved = new Set(units.map((u) => u.labCategory).filter(Boolean));
+
+  const ctx = { cfg, units, existingEntries, facCap, reserved };
   let best = null,
     totalNodes = 0;
   const failTotals = new Map();
@@ -418,15 +460,18 @@ function generateTimetable(data, userConfig = {}) {
 
   const entries = best.assigned
     .flatMap(({ u, v }) =>
-      u.courses.map((c) => ({
-        course: c._id,
-        subject: u.subject._id,
+      u.members.map(({ course, subject }) => ({
+        course: course._id,
+        subject: subject._id,
         faculty: u.faculty,
-        session: c.session,
+        session: course.session,
         venue: v.r._id,
         day: cfg.days[v.d],
         periodId: cfg.periodIds[v.s - 1],
         duration: u.duration,
+        // combo blocks: which stored combo, and a key tying this block's
+        // entries together (the caller turns the key into a real comboGroupId)
+        ...(u.comboId ? { combo: u.comboId, comboKey: `${u.comboId}#${u.id}` } : {}),
       })),
     )
     .sort(

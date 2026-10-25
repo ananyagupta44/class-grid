@@ -142,12 +142,14 @@ export function AuthProvider({ children }) {
       // ---- timetable work (admin / TT team and above) ----
       canEditTimetable: allow("editTimetable"),
       canGenerate: allow("generateTimetable"),
+      canManageCombos: allow("manageCombos"),
 
       // ---- super admin only ----
       canAddSubject: allow("addSubject"),
       canAddRoom: allow("addRoom"),
       canAddSession: allow("addSession"),
       canManageAccounts: allow("manageAccounts"),
+      canViewAuditLog: allow("viewAuditLog"),
 
       login,
       logout,

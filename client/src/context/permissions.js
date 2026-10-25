@@ -10,7 +10,7 @@
  *
  * Each level includes everything below it. To change who can do something,
  * edit the line for that permission — routes and the website both read this.
- * (This is the website copy — keep it identical to backend/utils/permissions.js.)
+ * (The website keeps an identical copy in context/permissions.js.)
  */
 
 export const ROLES = [
@@ -60,11 +60,16 @@ export const PERMISSIONS = {
   // ---- timetable work (TT team and above) ----
   editTimetable: from("admin"),
   generateTimetable: from("admin"),
+  manageCombos: from("admin"), // create / delete / schedule combo classes
 
   // ---- institute-level data and accounts (super admin only) ----
   addRoom: ["super_admin"],
   addSession: ["super_admin"],
   manageAccounts: ["super_admin"],
+
+  // ---- audit trail: who changed what (read the log + download reports) ----
+  // Assumption: only the super admin. To also let the TT team see it, change to from("admin").
+  viewAuditLog: ["super_admin"],
 };
 
 export const can = (role, permission) =>

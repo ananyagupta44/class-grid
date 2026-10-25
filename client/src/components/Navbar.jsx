@@ -8,7 +8,8 @@ import styles from "./Navbar.module.css";
 
 export default function Navbar() {
   const { openLogin } = useLoginSidebar();
-  const { user, ready, canAccessHome, canManageAccounts } = useAuth();
+  const { user, ready, canAccessHome, canManageAccounts, canViewAuditLog } =
+    useAuth();
 
   return (
     <header className={styles.header}>
@@ -34,6 +35,12 @@ export default function Navbar() {
               {canManageAccounts && (
                 <Link href="/home/accounts" className={styles.link}>
                   Accounts
+                </Link>
+              )}
+
+              {canViewAuditLog && (
+                <Link href="/audit" className={styles.link}>
+                  Audit Logs
                 </Link>
               )}
             </nav>

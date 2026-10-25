@@ -1,6 +1,7 @@
 import Course from "../models/Course.js";
 import Subject from "../models/Subject.js";
 import Session from "../models/Session.js";
+import mongoose from "mongoose";
 
 // ==================================================
 // CREATE COURSE
@@ -399,7 +400,10 @@ export const addSubjectToCourse = async (req, res) => {
       });
     }
 
-    const subject = await Subject.findById(subjectId);
+    // accept either the Mongo _id or the subject code (e.g. "CS101")
+    const subject = mongoose.isValidObjectId(subjectId)
+      ? await Subject.findById(subjectId)
+      : await Subject.findOne({ subjectId: String(subjectId).trim() });
 
     if (!subject) {
       return res.status(404).json({
@@ -409,7 +413,7 @@ export const addSubjectToCourse = async (req, res) => {
     }
 
     const alreadyExists = course.subjects.some(
-      (item) => String(item.subject) === String(subjectId),
+      (item) => String(item.subject) === String(subject._id),
     );
 
     if (alreadyExists) {
@@ -420,11 +424,16 @@ export const addSubjectToCourse = async (req, res) => {
     }
 
     course.subjects.push({
-      subject: subjectId,
+      subject: subject._id,
       faculty: null,
     });
 
     await course.save();
+
+    // keep Subject.courses in sync (createCourse already does this)
+    await Subject.findByIdAndUpdate(subject._id, {
+      $addToSet: { courses: course._id },
+    });
 
     const updatedCourse = await Course.findById(courseId)
       .populate("session")

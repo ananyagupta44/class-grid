@@ -887,8 +887,8 @@ function SessionModal({
 
         {mode === "select" && sessions.length === 0 && (
           <div className={styles.empty}>
-            No academic session exists yet. Please ask the super admin to create
-            one.
+            No academic session exists yet. Please ask the super admin to
+            create one.
           </div>
         )}
 
@@ -1244,6 +1244,11 @@ function SubjectModal({ subject, onClose, onSaved }) {
 
   const [category, setCategory] = useState(subject?.category || "course");
 
+  // special labs only: the kind of lab room this subject must use
+  const [requiredRoomCategory, setRequiredRoomCategory] = useState(
+    subject?.requiredRoomCategory || "",
+  );
+
   const [error, setError] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -1278,6 +1283,8 @@ function SubjectModal({ subject, onClose, onSaved }) {
           ltp: [Number(l), Number(t), Number(p)],
 
           category,
+
+          requiredRoomCategory: requiredRoomCategory.trim() || undefined,
         }),
       });
 
@@ -1395,6 +1402,17 @@ function SubjectModal({ subject, onClose, onSaved }) {
             />
           </label>
         </div>
+
+        {(Number(p) > 0 || type === "lab") && (
+          <label>
+            Special lab (optional)
+            <input
+              value={requiredRoomCategory}
+              onChange={(event) => setRequiredRoomCategory(event.target.value)}
+              placeholder="e.g. Chemistry — must use a lab with this category"
+            />
+          </label>
+        )}
 
         {error && <div className={styles.formError}>{error}</div>}
 

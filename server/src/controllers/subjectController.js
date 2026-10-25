@@ -6,8 +6,17 @@ import Subject from "../models/Subject.js";
 
 export const createSubject = async (req, res) => {
   try {
-    const { subjectId, name, noOfClasses, type, credits, ltp, category } =
-      req.body;
+    const {
+      subjectId,
+      name,
+      noOfClasses,
+      type,
+      credits,
+      ltp,
+      category,
+      requiredRoomCategory,
+      labDuration,
+    } = req.body;
 
     // -----------------------------
     // Validation
@@ -91,19 +100,14 @@ export const createSubject = async (req, res) => {
 
     const subject = await Subject.create({
       subjectId: subjectId.trim(),
-
       name: name.trim(),
-
       noOfClasses: Number(noOfClasses),
-
       type,
-
       credits: Number(credits),
-
       ltp: ltp.map(Number),
-
       category: category || "course",
-
+      requiredRoomCategory: requiredRoomCategory?.trim() || undefined,
+      labDuration: Number(labDuration) || 1,
       // IMPORTANT:
       // Subject starts without
       // being assigned to a course.

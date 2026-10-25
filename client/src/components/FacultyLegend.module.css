@@ -386,3 +386,61 @@
   border-color: var(--marigold-dark);
   background: var(--marigold-dark);
 }
+
+/* =========================
+   COMBO CLASSES
+========================= */
+
+.addCombo {
+  padding: 0.45rem 0.7rem;
+
+  border: 1px solid var(--slate, var(--ink));
+  border-radius: 5px;
+
+  background: transparent;
+  color: var(--ink);
+
+  font-size: 0.78rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.addCombo:hover {
+  background: var(--slate, var(--ink));
+  color: var(--parchment);
+}
+
+.comboRow {
+  background: rgba(28, 43, 38, 0.035);
+}
+
+.comboTag {
+  padding: 0.05rem 0.4rem;
+
+  border-radius: 3px;
+
+  background: var(--slate, var(--ink));
+  color: var(--parchment);
+
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.chipCombo {
+  border-left-color: var(--slate, var(--ink));
+  border-color: rgba(28, 43, 38, 0.35);
+  background: #eee8d8;
+}
+
+.chipCombo.chipSelected,
+.chipCombo.chipSelected:hover {
+  background: var(--marigold);
+  border-color: var(--marigold-dark);
+  color: var(--slate-dark);
+}

@@ -147,6 +147,17 @@
   min-height: 0;
 }
 
+/* only one right-hand panel (students / faculty / dept. in-charge):
+   keep it a normal, fixed width instead of half the page */
+.mainRowSinglePanel {
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+}
+
+/* faculty's own timetable: no side panel at all */
+.mainRowSolo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .gridCol {
   min-width: 0;
 }

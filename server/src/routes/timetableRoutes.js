@@ -5,7 +5,6 @@ import {
   createTimetableEntry,
   updateTimetableEntry,
   deleteTimetableEntry,
-  createComboTimetableEntry,
 } from "../controllers/timetableController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -25,13 +24,6 @@ router.post(
   protect,
   requirePermission("editTimetable"),
   createTimetableEntry,
-);
-
-router.post(
-  "/combo",
-  protect,
-  requirePermission("editTimetable"),
-  createComboTimetableEntry,
 );
 
 router.put(
