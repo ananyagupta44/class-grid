@@ -887,8 +887,8 @@ function SessionModal({
 
         {mode === "select" && sessions.length === 0 && (
           <div className={styles.empty}>
-            No academic session exists yet. Please ask the super admin to
-            create one.
+            No academic session exists yet. Please ask the super admin to create
+            one.
           </div>
         )}
 
@@ -1072,7 +1072,27 @@ function CourseModal({ course, session, subjects, faculty, onClose, onSaved }) {
        * this form can use it.
        */
 
-      setError("Course editing needs the course update endpoint.");
+      await apiRequest(`/courses/${course._id}`, {
+        method: "PUT",
+
+        body: JSON.stringify({
+          courseId: courseId.trim(),
+
+          semester: Number(semester),
+
+          noOfStudents: Number(noOfStudents),
+
+          subjects: selectedSubjects.map((id) => ({
+            subject: id,
+
+            faculty: subjectFaculty[id] || null,
+          })),
+        }),
+      });
+
+      await onSaved();
+
+      onClose();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1261,7 +1281,24 @@ function SubjectModal({ subject, onClose, onSaved }) {
       setError("");
 
       if (isEdit) {
-        setError("Subject editing needs the subject update endpoint.");
+        await apiRequest(`/subjects/${subject._id}`, {
+          method: "PUT",
+
+          body: JSON.stringify({
+            subjectId: subjectId.trim(),
+            name: name.trim(),
+            noOfClasses: Number(noOfClasses),
+            type,
+            credits: Number(credits),
+            ltp: [Number(l), Number(t), Number(p)],
+            category,
+            requiredRoomCategory: requiredRoomCategory.trim(),
+          }),
+        });
+
+        await onSaved();
+
+        onClose();
 
         return;
       }
@@ -1351,6 +1388,7 @@ function SubjectModal({ subject, onClose, onSaved }) {
             <input
               type="number"
               min="0"
+              step="any"
               value={credits}
               onChange={(event) => setCredits(event.target.value)}
             />
@@ -1455,7 +1493,20 @@ function FacultyModal({ faculty, onClose, onSaved }) {
       setError("");
 
       if (isEdit) {
-        setError("Faculty editing needs the faculty update endpoint.");
+        await apiRequest(`/faculty/${faculty._id}`, {
+          method: "PUT",
+
+          body: JSON.stringify({
+            facultyId: facultyId.trim(),
+            name: name.trim(),
+            noOfClassesPerWeek: Number(classes),
+            designation,
+          }),
+        });
+
+        await onSaved();
+
+        onClose();
 
         return;
       }
@@ -1574,7 +1625,20 @@ function VenueModal({ venue, onClose, onSaved }) {
       setError("");
 
       if (isEdit) {
-        setError("Venue editing needs the venue update endpoint.");
+        await apiRequest(`/rooms/${venue._id}`, {
+          method: "PUT",
+
+          body: JSON.stringify({
+            roomNo: roomNo.trim(),
+            capacity: Number(capacity),
+            type,
+            category: category.trim(),
+          }),
+        });
+
+        await onSaved();
+
+        onClose();
 
         return;
       }

@@ -5,6 +5,7 @@ import {
   getRooms,
   getRoomById,
 } from "../controllers/roomController.js";
+import { updateRoom } from "../controllers/editController.js";
 
 import protect from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/roleMiddleware.js";
@@ -18,5 +19,7 @@ router.post("/", protect, requirePermission("addRoom"), createRoom);
 router.get("/", protect, getRooms);
 
 router.get("/:id", protect, getRoomById);
+
+router.put("/:id", protect, requirePermission("addRoom"), updateRoom);
 
 export default router;

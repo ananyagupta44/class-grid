@@ -8,6 +8,7 @@ import {
 
 import protect from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/roleMiddleware.js";
+import { updateFaculty } from "../controllers/editController.js";
 
 const router = express.Router();
 
@@ -23,5 +24,7 @@ router.get(
   requirePermission("viewFacultyList"),
   getFacultyById,
 );
+
+router.put("/:id", protect, requirePermission("addFaculty"), updateFaculty);
 
 export default router;

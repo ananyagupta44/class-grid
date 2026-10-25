@@ -9,6 +9,7 @@ import {
 
 import protect from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/roleMiddleware.js";
+import { changePassword } from "../controllers/passwordController.js";
 
 const router = express.Router();
 
@@ -21,5 +22,7 @@ router.get("/me", protect, me);
 
 // Super admin — create accounts of any level
 router.post("/users", protect, requirePermission("manageAccounts"), createUser);
+
+router.put("/change-password", protect, changePassword);
 
 export default router;

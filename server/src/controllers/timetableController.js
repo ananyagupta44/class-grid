@@ -1,12 +1,10 @@
 import TimetableEntry from "../models/TimetableEntry.js";
+import mongoose from "mongoose";
 import Course from "../models/Course.js";
 import Room from "../models/Room.js";
 import Subject from "../models/Subject.js";
 import { checkVenueType, getClassDuration } from "../utils/labRooms.js";
-import {
-  MAX_LAB_BLOCK,
-  getRequiredPeriods,
-} from "../utils/periods.js";
+import { MAX_LAB_BLOCK, getRequiredPeriods } from "../utils/periods.js";
 
 async function checkConflict({
   session,
@@ -224,7 +222,12 @@ export const createTimetableEntry = async (req, res) => {
       });
     }
 
-    const classDuration = getClassDuration(subject, duration, venue, MAX_LAB_BLOCK);
+    const classDuration = getClassDuration(
+      subject,
+      duration,
+      venue,
+      MAX_LAB_BLOCK,
+    );
 
     const requiredPeriods = getRequiredPeriods(periodId, classDuration);
 
@@ -572,12 +575,21 @@ export const deleteTimetableEntry = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid timetable entry id.",
+      });
+    }
+
     const entry = await TimetableEntry.findById(id);
 
     if (!entry) {
-      return res.status(404).json({
-        success: false,
-        message: "Timetable entry not found.",
+      // already removed (e.g. its combo block was deleted a moment ago)
+      return res.status(200).json({
+        success: true,
+        alreadyRemoved: true,
+        message: "Class was already removed.",
       });
     }
 

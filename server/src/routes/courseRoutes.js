@@ -10,6 +10,8 @@ import {
 import { assignFacultyToSubject } from "../controllers/courseSubjectController.js";
 import protect from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/roleMiddleware.js";
+import { updateCourse } from "../controllers/editController.js";
+
 
 const router = express.Router();
 
@@ -45,5 +47,8 @@ router.patch(
 
 // View one course — any logged-in user
 router.get("/:id", protect, getCourseById);
+
+
+router.put("/:id", protect, requirePermission("addCourse"), updateCourse);
 
 export default router;

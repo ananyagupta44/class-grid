@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import ChangePasswordModal from "./ChangePasswordModal";
 import styles from "./ProfileMenu.module.css";
 
 const ROLE_LABEL = {
@@ -28,6 +30,7 @@ export default function ProfileMenu() {
   const { user, logout } = useAuth();
 
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef(null);
   const closeTimer = useRef(null);
 
@@ -71,6 +74,11 @@ export default function ProfileMenu() {
     closeTimer.current = setTimeout(() => setOpen(false), 150);
   }
 
+  function openChangePassword() {
+    setOpen(false);
+    setPasswordOpen(true);
+  }
+
   function handleLogout() {
     setOpen(false);
     logout();
@@ -78,6 +86,7 @@ export default function ProfileMenu() {
   }
 
   return (
+    <>
     <div
       ref={wrapRef}
       className={styles.wrap}
@@ -125,6 +134,15 @@ export default function ProfileMenu() {
 
           <button
             type="button"
+            className={styles.changePassword}
+            role="menuitem"
+            onClick={openChangePassword}
+          >
+            Change password
+          </button>
+
+          <button
+            type="button"
             className={styles.logout}
             role="menuitem"
             onClick={handleLogout}
@@ -134,5 +152,12 @@ export default function ProfileMenu() {
         </div>
       )}
     </div>
+
+    {passwordOpen &&
+      createPortal(
+        <ChangePasswordModal onClose={() => setPasswordOpen(false)} />,
+        document.body,
+      )}
+    </>
   );
 }

@@ -8,6 +8,7 @@ import {
 
 import protect from "../middleware/authMiddleware.js";
 import { requirePermission } from "../middleware/roleMiddleware.js";
+import { updateSubject } from "../controllers/editController.js";
 
 const router = express.Router();
 
@@ -18,5 +19,7 @@ router.post("/", protect, requirePermission("addSubject"), createSubject);
 router.get("/", protect, getSubjects);
 
 router.get("/:id", protect, getSubjectById);
+
+router.put("/:id", protect, requirePermission("addSubject"), updateSubject);
 
 export default router;
