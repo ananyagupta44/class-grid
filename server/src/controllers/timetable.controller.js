@@ -6,8 +6,10 @@ import Course from "../models/Course.js";
 import Subject from "../models/Subject.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
-import TimetableEntry from "../models/TimetableEntry.js";
 import Combo from "../models/Combo.js";
+import { checkVenueType } from "../utils/labRooms.js";
+import TimetableEntry from "../models/TimetableEntry.js";
+import { logAudit } from "../audit/audit.service.js";
 
 // sessions currently being generated (stops two admins clicking at once)
 const running = new Set();
@@ -37,11 +39,20 @@ function cleanConfig(config = {}) {
     out.maxLabBlock = labBlock;
   }
 
+  const sectionRun = Number(config.maxConsecutiveSection);
+
+  if (Number.isInteger(sectionRun) && sectionRun >= 2 && sectionRun <= 6) {
+    out.maxConsecutiveSection = sectionRun;
+  }
+
   return out;
 }
 
 // POST /api/timetable/generate        (admin only)
 // body: { sessionId, dryRun?, config?: { days, periodIds, noSpanAfter, maxLabBlock } }
+//
+//   Combos saved for the session (Combo model) are placed AUTOMATICALLY, before labs
+//   and normal classes, as one class with one room for all their courses.
 //
 //   dryRun: true  → run the scheduler and report, but save NOTHING
 //   dryRun: false → REPLACE the session's timetable with the generated one
@@ -72,47 +83,54 @@ export const generate = async (req, res) => {
       c.subjects.map((s) => s.faculty).filter(Boolean),
     );
 
-    // stored combo classes: each is scheduled as ONE block shared by its courses
-    const combos = await Combo.find({ session: sessionId }).lean();
-
-    // a combo can pull in subjects / faculty the plain course list did not
-    for (const combo of combos) {
-      for (const member of combo.members) subjectIds.push(member.subject);
-      facultyIds.push(combo.faculty);
-    }
-
-    const [subjects, faculties, rooms, existingEntries] = await Promise.all([
+    const [subjects, faculties, rooms, existingEntries, combos] = await Promise.all([
       Subject.find({ _id: { $in: subjectIds } }).lean(),
       Faculty.find({ _id: { $in: facultyIds } }).lean(),
       Room.find().lean(),
 
       // other sessions' timetables: teachers / rooms already busy there
       TimetableEntry.find({ session: { $ne: sessionId } }).lean(),
+
+      // combos made on the site for this session
+      Combo.find({ session: sessionId }).lean(),
     ]);
 
+    // every saved combo becomes one joint class (same faculty, same room, all courses together)
+    const combinedGroups = combos.map((combo) => ({
+      comboId: String(combo._id),
+      name: combo.name || "unnamed",
+      members: (combo.members || []).map((member) => ({
+        course: String(member.course),
+        subject: String(member.subject),
+      })),
+    }));
+
+    // a combined class must pass the same room check as scheduling a combo by hand
+    const roomAllowed = (unit, room) =>
+      !unit.combined ||
+      unit.members.every((member) => checkVenueType(member.subject, room, rooms).ok);
+
     const result = generateTimetable(
-      { courses, subjects, faculties, rooms, existingEntries, combos },
-      cleanConfig(config),
+      { courses, subjects, faculties, rooms, existingEntries, combinedGroups },
+      { ...cleanConfig(config), roomAllowed },
     );
 
     if (!result.ok) {
       return res.status(422).json(result);
     }
 
-    // every combo block gets ONE comboGroupId shared by its courses' entries
-    // (a real ObjectId string, like manually created combos)
-    const groupIds = new Map();
+    // the blocks of one combined class share a comboGroupId, like a combo scheduled by hand
+    const blockIds = new Map();
 
-    for (const entry of result.entries) {
-      if (!entry.comboKey) continue;
+    const entries = result.entries.map(({ comboBlock, ...entry }) => {
+      if (comboBlock === undefined) return entry;
 
-      if (!groupIds.has(entry.comboKey)) {
-        groupIds.set(entry.comboKey, new mongoose.Types.ObjectId().toString());
+      if (!blockIds.has(comboBlock)) {
+        blockIds.set(comboBlock, new mongoose.Types.ObjectId().toString());
       }
 
-      entry.comboGroupId = groupIds.get(entry.comboKey);
-      delete entry.comboKey;
-    }
+      return { ...entry, comboGroupId: blockIds.get(comboBlock) };
+    });
 
     if (dryRun) {
       return res.json({
@@ -131,11 +149,25 @@ export const generate = async (req, res) => {
     await TimetableEntry.deleteMany({ session: sessionId });
 
     try {
-      await TimetableEntry.insertMany(result.entries);
+      await TimetableEntry.insertMany(entries);
     } catch (insertError) {
       if (previous.length) await TimetableEntry.insertMany(previous);
       throw insertError;
     }
+
+    await logAudit({
+      action: "generate",
+      entity: "Timetable",
+      entityId: sessionId,
+      summary: `Generated timetable for session ${sessionId}: ${result.entries.length} entries saved, ${previous.length} replaced`,
+      meta: {
+        count: result.entries.length,
+        removed: previous.length,
+        cost: result.cost,
+        combos: combos.length,
+        config: cleanConfig(config),
+      },
+    });
 
     return res.json({
       ok: true,

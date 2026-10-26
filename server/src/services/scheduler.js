@@ -4,13 +4,16 @@
  *
  * Variable : one "unit" = one lecture/tutorial period OR one lab block (duration > 1)
  * Domain   : (day, startPeriod, room)
- * Hard     : teacher / room / section double-booking, room capacity, room type,
+ * Order    : 1) combo classes  2) lab blocks  3) normal classes   (strict priority)
+ * Hard     : teacher / room / section double-booking, room capacity, room type
+ *            (combo classes pass the same checkVenueType as scheduling a combo by hand),
  *            lab contiguity (same room, consecutive periods, same day), working days/periods,
  *            faculty weekly cap, blocks never span a break
- * Soft     : gaps, teacher consecutive load, capacity fit, room balance, lab room category
+ * Soft     : combo classes in the first N morning periods, gaps, teacher consecutive load,
+ *            capacity fit, room balance, lab room category
  */
 
-import { norm, requiredLabCategory } from "../utils/labRooms.js";
+import { norm, requiredLabCategory, checkVenueType } from "../utils/labRooms.js";
 
 const DEFAULTS = {
   days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
@@ -21,12 +24,16 @@ const DEFAULTS = {
   maxLabBlock: 3, // lab hours above this get split into several blocks (manual scheduling also caps labs at 3)
   maxSameSubjectPerDay: 1, // lecture/tutorial periods of one subject per section per day
   maxConsecutiveTeaching: 2, // 3+ consecutive periods for a teacher is penalised
+  comboMorningPeriods: 3, // combo classes try to stay inside the first N periods of the day
+  roomAllowed: null, // optional extra rule: (unit, room) => boolean
   weights: {
     gap: 5,
     consecutive: 4,
     capacityFit: 2,
     roomBalance: 1,
     categoryMismatch: 3,
+    comboMorning: 8, // per period a combo class runs past the morning window
+    comboEarly: 0.5, // per period a combo class starts after period 1
   },
   attempts: 5, // restarts with different tie-breaking; best soft cost wins
   maxNodes: 20000, // search budget per attempt
@@ -84,11 +91,14 @@ function buildUnits(courses, subjById, cfg, combos = []) {
   /*
    * members: [{ course, subject }] — ONE member for a normal class, several for
    * a combo class (the same block is then shared by all those courses).
+   * tier: 0 = combo class, 1 = lab block, 2 = normal class (placement priority)
    */
   const push = (members, faculty, duration, isLab, comboId = null) =>
     units.push({
       id: units.length,
       members,
+      combined: members.length > 1,
+      tier: members.length > 1 ? 0 : isLab ? 1 : 2,
       courses: members.map((m) => m.course),
       courseIds: members.map((m) => String(m.course._id)),
       subject: members[0].subject,
@@ -272,6 +282,11 @@ function runAttempt(ctx, seed) {
     c += (w.roomBalance * (roomLoad.get(r.id) || 0)) / (assigned.length + 1); // room balance
     if (u.isLab && !u.labCategory && r.category && reserved.has(norm(r.category)))
       c += w.categoryMismatch; // don't use up a specialised lab
+    // combo classes: stay in the morning window and start early
+    if (u.combined) {
+      c += w.comboMorning * Math.max(0, e - cfg.comboMorningPeriods);
+      c += w.comboEarly * (s - 1);
+    }
     return c;
   };
 
@@ -304,11 +319,13 @@ function runAttempt(ctx, seed) {
     return out.sort((a, b) => a.cost - b.cost);
   };
 
-  // hardest first: labs, longer blocks, fewest candidate rooms
+  // strict priority: combo classes, then labs, then normal classes;
+  // inside a group: longer blocks and units with the fewest candidate rooms first
   const remaining = units
     .map((u) => [u, rng()])
     .sort(
       ([a, ra], [b, rb]) =>
+        a.tier - b.tier ||
         b.isLab - a.isLab ||
         b.duration - a.duration ||
         a.rooms.length - b.rooms.length ||
@@ -321,8 +338,10 @@ function runAttempt(ctx, seed) {
     let pick = -1,
       pickDom = null;
     const w = Math.min(cfg.window, remaining.length);
+    const firstTier = remaining[0].tier;
     for (let i = 0; i < w; i++) {
-      // MRV + forward check
+      // MRV + forward check, but never jump ahead of a higher-priority group
+      if (remaining[i].tier !== firstTier) break;
       const dom = domain(remaining[i]);
       if (!dom.length) {
         bump(failCount, remaining[i].id, 1);
@@ -362,7 +381,7 @@ function runAttempt(ctx, seed) {
 
 // ---------- 4. public API ----------
 /**
- * @param {{courses, subjects, faculties, rooms, existingEntries?}} data  plain objects (use .lean())
+ * @param {{courses, subjects, faculties, rooms, existingEntries?, combos?}} data  plain objects (use .lean())
  * @param {object} userConfig  overrides for DEFAULTS
  * @returns {{ok, entries, cost, errors, warnings, stuck, stats}}
  */
@@ -413,7 +432,11 @@ function generateTimetable(data, userConfig = {}) {
         (r) =>
           (u.isLab ? isLabRoomCfg(r) : !isLabRoomCfg(r)) &&
           r.capacity >= u.size &&
-          (!need || norm(r.category) === need),
+          (!need || norm(r.category) === need) &&
+          // a combo class must pass the same room check as scheduling a combo by hand
+          (!u.combined ||
+            u.members.every((m) => checkVenueType(m.subject, r, rooms).ok)) &&
+          (!cfg.roomAllowed || cfg.roomAllowed(u, r)),
       )
       .sort((a, b) => a.capacity - b.capacity);
   }
