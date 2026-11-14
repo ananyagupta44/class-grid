@@ -1358,6 +1358,32 @@
   cursor: not-allowed;
 }
 
+.masterGhost {
+  padding: 0.5rem 0.8rem;
+
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+
+  background: transparent;
+  color: var(--ink);
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.masterGhost:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--parchment);
+}
+
+.masterGhost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ----- messages ----- */
 
 .masterOk,
@@ -1630,4 +1656,27 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.6rem;
+}
+
+/* ----- Excel import: message with row-wise details ----- */
+
+.masterMessageBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.masterDetails {
+  margin: 0;
+  padding-left: 1.1rem;
+
+  max-height: 11rem;
+  overflow-y: auto;
+
+  font-size: 0.7rem;
+}
+
+.masterDetails li + li {
+  margin-top: 0.15rem;
 }

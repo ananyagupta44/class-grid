@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { buildMasterModel, filterMasterModel } from "./masterTableModel";
 import styles from "./page.module.css";
@@ -35,13 +35,19 @@ export default function MasterTable({
   onAddSubjectToCourse, // (course, subjectDbId)
   onAssignFaculty, // (course, subjectDbId, facultyDbId)
   onOpenCourse,
+
+  // Excel
+  canImport, // may upload a sheet / download the blank template
+  onDownloadExcel, // ("template" | "export")
+  onImportExcel, // (file) -> { stats, warnings }
 }) {
   const [query, setQuery] = useState("");
   const [editingCell, setEditingCell] = useState(""); // row.key being assigned
   const [addingTo, setAddingTo] = useState(""); // course id with the add-subject row open
   const [pickedSubject, setPickedSubject] = useState("");
   const [busy, setBusy] = useState("");
-  const [message, setMessage] = useState(null); // { type: "ok" | "error", text }
+  const [message, setMessage] = useState(null); // { type: "ok" | "error", text, details? }
+  const fileInput = useRef(null);
 
   const groups = useMemo(
     () => buildMasterModel({ courses, subjects, faculty, entries }),
@@ -64,7 +70,12 @@ export default function MasterTable({
       setMessage({ type: "ok", text: okText });
       return true;
     } catch (err) {
-      setMessage({ type: "error", text: err.message || "Something went wrong" });
+      setMessage({
+        type: "error",
+        text: err.message || "Something went wrong",
+        details: err.details,
+        more: err.more,
+      });
       return false;
     } finally {
       setBusy("");
@@ -95,6 +106,56 @@ export default function MasterTable({
     if (done) {
       setAddingTo("");
       setPickedSubject("");
+    }
+  }
+
+  function downloadExcel(kind) {
+    run(
+      `excel-${kind}`,
+      () => onDownloadExcel(kind),
+      kind === "export"
+        ? "Master table downloaded."
+        : "Template downloaded. Fill it in and use Import Excel.",
+    );
+  }
+
+  async function importExcel(event) {
+    const file = event.target.files?.[0];
+
+    event.target.value = ""; // so the same file can be chosen again
+
+    if (!file) return;
+
+    if (!/\.xlsx$/i.test(file.name)) {
+      setMessage({ type: "error", text: "Please choose an .xlsx Excel file." });
+      return;
+    }
+
+    setBusy("excel-import");
+    setMessage(null);
+
+    try {
+      const { stats = {}, warnings = [] } = await onImportExcel(file);
+
+      setMessage({
+        type: "ok",
+        text:
+          `Imported ${stats.rowsRead} row${stats.rowsRead === 1 ? "" : "s"}: ` +
+          `${stats.coursesCreated} new course${stats.coursesCreated === 1 ? "" : "s"}, ` +
+          `${stats.subjectsCreated} new subject${stats.subjectsCreated === 1 ? "" : "s"}, ` +
+          `${stats.subjectsAddedToCourses} subject${stats.subjectsAddedToCourses === 1 ? "" : "s"} added to courses, ` +
+          `${stats.facultyAssigned} faculty assigned.`,
+        details: warnings.map((item) => `Row ${item.row}: ${item.message}`),
+      });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.message || "Import failed",
+        details: err.details,
+        more: err.more,
+      });
+    } finally {
+      setBusy("");
     }
   }
 
@@ -132,6 +193,52 @@ export default function MasterTable({
             aria-label="Search the master table"
           />
 
+          {onDownloadExcel && (
+            <button
+              type="button"
+              className={styles.masterGhost}
+              onClick={() => downloadExcel("export")}
+              disabled={Boolean(busy)}
+              title="Download this master table as an Excel file"
+            >
+              {busy === "excel-export" ? "Preparing..." : "Export Excel"}
+            </button>
+          )}
+
+          {canImport && onDownloadExcel && (
+            <button
+              type="button"
+              className={styles.masterGhost}
+              onClick={() => downloadExcel("template")}
+              disabled={Boolean(busy)}
+              title="Download the blank Excel format to fill in"
+            >
+              {busy === "excel-template" ? "Preparing..." : "Download format"}
+            </button>
+          )}
+
+          {canImport && onImportExcel && (
+            <>
+              <button
+                type="button"
+                className={styles.masterGhost}
+                onClick={() => fileInput.current?.click()}
+                disabled={Boolean(busy)}
+                title="Upload a filled Excel sheet"
+              >
+                {busy === "excel-import" ? "Importing..." : "Import Excel"}
+              </button>
+
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={importExcel}
+                hidden
+              />
+            </>
+          )}
+
           {canAddCourse && (
             <button type="button" className={styles.masterAdd} onClick={onAddCourse}>
               + Course
@@ -157,7 +264,19 @@ export default function MasterTable({
           className={message.type === "error" ? styles.masterError : styles.masterOk}
           role={message.type === "error" ? "alert" : "status"}
         >
-          <span>{message.text}</span>
+          <div className={styles.masterMessageBody}>
+            <span>{message.text}</span>
+
+            {message.details?.length > 0 && (
+              <ul className={styles.masterDetails}>
+                {message.details.map((line, index) => (
+                  <li key={index}>{line}</li>
+                ))}
+
+                {message.more > 0 && <li>...and {message.more} more</li>}
+              </ul>
+            )}
+          </div>
 
           <button
             type="button"
