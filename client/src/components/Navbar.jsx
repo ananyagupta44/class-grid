@@ -1,15 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useLoginSidebar } from "../context/LoginSidebarContext";
 import ProfileMenu from "./ProfileMenu";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const { openLogin } = useLoginSidebar();
   const { user, ready, canAccessHome, canManageAccounts, canViewAuditLog } =
     useAuth();
+
+  // the links this user may see
+  const links = [
+    canAccessHome && { href: "/home", label: "Home" },
+    { href: "/dashboard", label: "Dashboard" },
+    canManageAccounts && { href: "/home/accounts", label: "Accounts" },
+    canViewAuditLog && { href: "/audit", label: "Audit Logs" },
+  ].filter(Boolean);
+
+  // the most specific match wins, so /home/accounts does not also light up Home
+  const activeHref = links
+    .filter(({ href }) => pathname === href || pathname?.startsWith(`${href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <header className={styles.header}>
@@ -19,40 +34,35 @@ export default function Navbar() {
             ClassGrid
           </Link>
 
-          {/* only links the signed-in user is allowed to open */}
           {ready && user && (
             <nav className={styles.mainNav}>
-              {canAccessHome && (
-                <Link href="/home" className={styles.link}>
-                  Home
-                </Link>
-              )}
+              {links.map(({ href, label }) => {
+                const active = href === activeHref;
 
-              <Link href="/dashboard" className={styles.link}>
-                Dashboard
-              </Link>
-
-              {canManageAccounts && (
-                <Link href="/home/accounts" className={styles.link}>
-                  Accounts
-                </Link>
-              )}
-
-              {canViewAuditLog && (
-                <Link href="/audit" className={styles.link}>
-                  Audit Logs
-                </Link>
-              )}
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`${styles.link} ${active ? styles.active : ""}`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </nav>
           )}
         </div>
 
-        {/* nothing on the right until we know whether someone is signed in */}
         {ready && user && <ProfileMenu />}
 
         {ready && !user && (
           <nav className={styles.nav}>
-            <Link href="/register" className={styles.link}>
+            <Link
+              href="/register"
+              className={`${styles.link} ${pathname === "/register" ? styles.active : ""}`}
+              aria-current={pathname === "/register" ? "page" : undefined}
+            >
               Student Register
             </Link>
 

@@ -72,24 +72,37 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 640px) {
-  .left {
-    gap: 1rem;
-  }
+/* ===== nav links: animated underline + active tab ===== */
+.link {
+  position: relative;
+  transition: color 0.18s ease;
+}
 
-  .mainNav {
-    gap: 0.85rem;
-  }
+.link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--marigold, #e0a526);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.22s ease;
+}
 
-  .nav {
-    gap: 0.85rem;
-  }
+.link:hover::after,
+.link:focus-visible::after {
+  transform: scaleX(1);
+}
 
-  .link {
-    display: none;
-  }
+/* the tab you are on */
+.active {
+  font-weight: 700;
+  color: var(--ink, #1c2b26);
+}
 
-  .mainNav .link {
-    display: block;
-  }
+.active::after {
+  transform: scaleX(1);
 }

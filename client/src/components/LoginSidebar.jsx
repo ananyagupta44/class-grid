@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { can } from "../context/permissions";
 import { useLoginSidebar } from "../context/LoginSidebarContext";
+import PasswordInput from "./PasswordInput";
 
 import styles from "./LoginSidebar.module.css";
 
@@ -229,7 +230,7 @@ export default function LoginSidebar() {
           <label className={styles.field}>
             <span>Password</span>
 
-            <input
+            <PasswordInput
               type="password"
               name="password"
               value={password}
