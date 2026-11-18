@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+} from "react";
 
 import { useSearchParams } from "next/navigation";
 
@@ -221,7 +228,7 @@ function normalizeEntry(entry) {
 // PROVIDER
 // ==================================================
 
-export function TimetableProvider({ children }) {
+export function TimetableProviderInner({ children }) {
   const searchParams = useSearchParams();
 
   const selectedCourseId = searchParams.get("courseId");
@@ -515,6 +522,14 @@ export function TimetableProvider({ children }) {
 // ==================================================
 // HOOK
 // ==================================================
+
+export function TimetableProvider({ children }) {
+  return (
+    <Suspense fallback={null}>
+      <TimetableProviderInner>{children}</TimetableProviderInner>
+    </Suspense>
+  );
+}
 
 export function useTimetable() {
   const context = useContext(TimetableContext);
