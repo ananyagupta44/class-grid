@@ -115,8 +115,24 @@ export function comboRemainingBlocks(combo, courseEntries, getId) {
 
   const groups = new Map(); // comboGroupId -> entry (one per placed block)
 
+  // the (course, subject) pairs that make up this combo
+  const pairs = new Set(
+    (combo?.members || []).map(
+      (member) => `${getId(member.course)}|${getId(member.subject)}`,
+    ),
+  );
+
+  // an entry belongs to this combo when it says so (entry.combo), or - for
+  // entries that carry only a comboGroupId - when its course + subject are
+  // members of this combo
+  const belongsHere = (entry) =>
+    entry.combo
+      ? String(getId(entry.combo)) === String(combo._id)
+      : Boolean(entry.comboGroupId) &&
+        pairs.has(`${getId(entry.course)}|${getId(entry.subject)}`);
+
   for (const entry of courseEntries) {
-    if (String(getId(entry.combo)) !== String(combo._id)) continue;
+    if (!belongsHere(entry)) continue;
 
     const key = entry.comboGroupId || String(entry._id || entry.id);
 

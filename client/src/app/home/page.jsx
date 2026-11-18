@@ -252,6 +252,71 @@ export default function HomePage() {
     await refreshData();
   }
 
+  // download the blank Excel template ("template") or the current master table ("export")
+  async function downloadMasterExcel(kind) {
+    const token = localStorage.getItem("token");
+
+    const query =
+      kind === "export" ? `?sessionId=${selectedSession?._id}` : "";
+
+    const response = await fetch(`${API_URL}/master-table/${kind}${query}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body?.message || "Download failed");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download =
+      kind === "export"
+        ? `master-table_${selectedSession?.sessionId || "session"}.xlsx`
+        : "master-table-template.xlsx";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // upload a filled Excel sheet; the raw file is the request body
+  async function importMasterExcel(file) {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(
+      `${API_URL}/master-table/import?sessionId=${selectedSession._id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: file,
+      },
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const error = new Error(data?.message || "Import failed");
+      error.details = (data?.errors || []).map(
+        (item) => `Row ${item.row}: ${item.message}`,
+      );
+      error.more = Math.max(0, (data?.totalErrors || 0) - error.details.length);
+      throw error;
+    }
+
+    await refreshData();
+
+    return data;
+  }
+
   // ==================================================
   // SELECT SESSION
   // ==================================================
@@ -542,6 +607,9 @@ export default function HomePage() {
           onAddSubjectToCourse={addSubjectToCourse}
           onAssignFaculty={assignFacultyToSubject}
           onOpenCourse={openCourse}
+          canImport={canAddCourse}
+          onDownloadExcel={downloadMasterExcel}
+          onImportExcel={importMasterExcel}
         />
       )}
 

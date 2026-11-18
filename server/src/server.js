@@ -19,6 +19,7 @@ import { auditContext } from "./audit/auditContext.js";
 import { auditSelfCheck } from "./audit/audit.setup.js";
 import auditRoutes from "./routes/audit.routes.js";
 import comboRoutes from "./routes/comboRoutes.js";
+import masterTableRoutes from "./routes/masterTableRoutes.js";
 
 // __dirname equivalent for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/timetable", timetable);
 app.use("/api/audit", auditRoutes);
 app.use("/api/combos", comboRoutes);
+app.use("/api/master-table", masterTableRoutes);
 
 // --------------------------------------------------
 // Health Check

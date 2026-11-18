@@ -166,17 +166,22 @@ export default function FacultyLegend({
           const remaining = item.remainingBlocks || [];
 
           return (
-            <div key={subject.id} className={styles.subject}>
+            <div
+              key={subject.id}
+              className={styles.subject}
+              // classes still to schedule first, finished ones below
+              style={{ order: remaining.length ? 0 : 1 }}
+            >
               <div className={styles.subjectInfo}>
                 <strong>{subject.subjectId}</strong>
 
-                <span>{subject.name}</span>
+                <span title={subject.name}>{subject.name}</span>
 
                 <small>LTP: {(subject.ltp || []).join(" - ")}</small>
               </div>
 
               <div className={styles.facultyRow}>
-                <span>
+                <span title={assignedFaculty?.name || ""}>
                   {assignedFaculty
                     ? assignedFaculty.name
                     : "No faculty assigned"}
@@ -206,8 +211,11 @@ export default function FacultyLegend({
               <div className={styles.blockRow}>
                 {item.comboNote ? (
                   // this subject is taught together with other courses
-                  <span className={styles.done}>
-                    Scheduled through combo “{item.comboNote}”
+                  <span
+                    className={styles.done}
+                    title={`Scheduled through combo “${item.comboNote}”`}
+                  >
+                    <span className={styles.comboTag}>COMBO</span> see below
                   </span>
                 ) : !canPlace ? (
                   // setup-only view: no dragging, just how much is left
@@ -266,13 +274,14 @@ export default function FacultyLegend({
             <div
               key={entry.combo._id}
               className={`${styles.subject} ${styles.comboRow}`}
+              style={{ order: remaining.length ? 0 : 1 }}
             >
               <div className={styles.subjectInfo}>
                 <strong>
                   <span className={styles.comboTag}>COMBO</span> {entry.label}
                 </strong>
 
-                <span>{entry.members}</span>
+                <span title={entry.members}>{entry.members}</span>
 
                 <small>{entry.students} students together</small>
               </div>

@@ -7,7 +7,6 @@ import Subject from "../models/Subject.js";
 import Faculty from "../models/Faculty.js";
 import Room from "../models/Room.js";
 import Combo from "../models/Combo.js";
-import { checkVenueType } from "../utils/labRooms.js";
 import TimetableEntry from "../models/TimetableEntry.js";
 import { logAudit } from "../audit/audit.service.js";
 
@@ -95,41 +94,28 @@ export const generate = async (req, res) => {
       Combo.find({ session: sessionId }).lean(),
     ]);
 
-    // every saved combo becomes one joint class (same faculty, same room, all courses together)
-    const combinedGroups = combos.map((combo) => ({
-      comboId: String(combo._id),
-      name: combo.name || "unnamed",
-      members: (combo.members || []).map((member) => ({
-        course: String(member.course),
-        subject: String(member.subject),
-      })),
-    }));
-
-    // a combined class must pass the same room check as scheduling a combo by hand
-    const roomAllowed = (unit, room) =>
-      !unit.combined ||
-      unit.members.every((member) => checkVenueType(member.subject, room, rooms).ok);
-
+    // The scheduler places every saved combo (`combos`) as ONE class shared by
+    // its courses, and returns each block's entries tagged with a `comboKey`.
+    // Turn each key into a real comboGroupId, like a combo scheduled by hand.
     const result = generateTimetable(
-      { courses, subjects, faculties, rooms, existingEntries, combinedGroups },
-      { ...cleanConfig(config), roomAllowed },
+      { courses, subjects, faculties, rooms, existingEntries, combos },
+      cleanConfig(config),
     );
 
     if (!result.ok) {
       return res.status(422).json(result);
     }
 
-    // the blocks of one combined class share a comboGroupId, like a combo scheduled by hand
     const blockIds = new Map();
 
-    const entries = result.entries.map(({ comboBlock, ...entry }) => {
-      if (comboBlock === undefined) return entry;
+    const entries = result.entries.map(({ comboKey, ...entry }) => {
+      if (!comboKey) return entry;
 
-      if (!blockIds.has(comboBlock)) {
-        blockIds.set(comboBlock, new mongoose.Types.ObjectId().toString());
+      if (!blockIds.has(comboKey)) {
+        blockIds.set(comboKey, new mongoose.Types.ObjectId().toString());
       }
 
-      return { ...entry, comboGroupId: blockIds.get(comboBlock) };
+      return { ...entry, comboGroupId: blockIds.get(comboKey) };
     });
 
     if (dryRun) {
