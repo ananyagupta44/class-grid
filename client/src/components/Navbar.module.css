@@ -100,7 +100,7 @@
 /* the tab you are on */
 .active {
   font-weight: 700;
-  color: var(--ink, #1c2b26);
+  color: var(--ink, #5fb193);
 }
 
 .active::after {
